@@ -127,6 +127,8 @@ body {
   background: none;
   cursor: pointer;
   /* Use CSS variables for dynamic sizing */
+  justify-content: center;
+  align-items: center;
   width: var(--btn-width, 100px);
   height: var(--btn-height, 80px);
   outline: none;
@@ -145,6 +147,17 @@ body {
   transition: transform 0.1s ease-in-out;
 }
 
+.mute-btn {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mute-btn .icon-btn__img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+}
+
 .icon-btn:hover .icon-btn__img {
   transform: scale(1.05);
 }
@@ -154,6 +167,11 @@ body {
 .icon-btn:active .icon-btn__img,
 .icon-btn:active .icon-btn__text {
   transform: scale(0.95);
+}
+
+.icon-btn.mute-btn:hover .icon-btn__img,
+.icon-btn.mute-btn:active .icon-btn__img {
+  transform: none;
 }
 .icon-btn__text {
   pointer-events: none;

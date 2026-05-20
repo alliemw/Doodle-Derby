@@ -19,7 +19,6 @@ import { CanvasButton } from "../../src/components/CanvasButton";
 import { PlayerAvatar } from "../../src/components/PlayerAvatar";
 import { ArtistBar } from "../../src/components/ArtistBar";
 
-
 const VIRTUAL_WIDTH = 600;
 const VIRTUAL_HEIGHT = 600;
 
@@ -178,7 +177,12 @@ function DrawCanvas(props: { prompt: string }) {
   return (
     <>
       <div class="draw-root-container">
-        <h2 class="draw-header">{props.prompt}</h2>
+        <div class="draw-header-container">
+          <h2 class="draw-header">{"DRAW:"}</h2>
+          <h2>&nbsp;</h2>
+          <h2 class="draw-header">{props.prompt}</h2>
+        </div>
+
         <div class="draw-workspace">
           <ArtistBar
             brush={brush}
@@ -187,52 +191,16 @@ function DrawCanvas(props: { prompt: string }) {
             setPaintMode={setPaintMode}
             paintCanvas={paintCanvas()}
           />
-          <div
-            class="canvas-wrapper"
-            style={{
-              position: "relative",
-              width: "var(--canvas-size)",
-              height: "var(--canvas-size)",
-              margin: "0 auto",
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "center",
-            }}
-          >
+          <div class="canvas-wrapper">
+            <img class="canvas-frame-outer" src="/drawing/canvas_frame.png" />
             <img
-              src="/drawing/canvas_frame.png"
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "var(--canvas-frame-outer)",
-                height: "var(--canvas-frame-outer)",
-                "z-index": 0,
-                "pointer-events": "none", // Ensures clicks go through to the canvas
-              }}
-            />
-            <img
+              class="canvas-frame-inner"
               src="/drawing/canvas_inner_frame.png"
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "var(--canvas-frame-inner-w)",
-                height: "var(--canvas-frame-inner-h)",
-                "z-index": 1,
-                "pointer-events": "none", // Ensures clicks go through to the canvas
-              }}
             />
             <div
               ref={containerRef}
               id="container"
               class="canvas-container"
-              style={{
-                position: "relative",
-                "z-index": 2,
-                "border-radius": "5px",
-              }}
             ></div>
           </div>
         </div>
@@ -364,69 +332,31 @@ export function SpectatorCanvas(props: {
     <>
       <div class="draw-root-container">
         <div class="spectator-header-container">
-          <PlayerAvatar player={props.artist} ></PlayerAvatar>
+          <PlayerAvatar player={props.artist}></PlayerAvatar>
           <div
             style={{
               display: "flex",
               "justify-content": "flex-end",
               "align-items": "flex-end",
-              "gap": "40px",
+              gap: "40px",
             }}
           >
             <div class="spectator-name-header">
               {props.artist.getState("name")}
             </div>
-            <h1 class="spectator-prompt-header"><pre>{props.hiddenPrompt}</pre></h1>
+            <h1 class="spectator-prompt-header">
+              <pre>{props.hiddenPrompt}</pre>
+            </h1>
           </div>
         </div>
 
-        <div
-          class={wrapperClass()}
-          style={{
-            position: "relative",
-            width: "var(--canvas-size)",
-            height: "var(--canvas-size)",
-            margin: "0 auto",
-            display: "flex",
-            "align-items": "center",
-            "justify-content": "center",
-          }}
-        >
+        <div class={wrapperClass()}>
+          <img class="canvas-frame-outer" src="/drawing/canvas_frame.png" />
           <img
-            src="/drawing/canvas_frame.png"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "var(--canvas-frame-outer)",
-              height: "var(--canvas-frame-outer)",
-              "z-index": 0,
-              "pointer-events": "none",
-            }}
-          />
-          <img
+            class="canvas-frame-inner"
             src="/drawing/canvas_inner_frame.png"
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "var(--canvas-frame-inner-w)",
-              height: "var(--canvas-frame-inner-h)",
-              "z-index": 1,
-              "pointer-events": "none",
-            }}
           />
-          <div
-            ref={containerRef}
-            id="container"
-            class="canvas-container"
-            style={{
-              position: "relative",
-              "z-index": 2,
-              "border-radius": "5px",
-            }}
-          ></div>
+          <div ref={containerRef} id="container" class="canvas-container"></div>
         </div>
       </div>
     </>
