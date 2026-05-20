@@ -99,11 +99,29 @@
   align-items: flex-start;
 }
 
-/* The actual Konva canvas container */
+/* The actual Konva canvas container. CSS sets the layout size; JS reads
+   that size and resizes the backing canvas + Konva stage to match. */
 .canvas-container {
-  width: 600px;
-  height: 600px;
+  width: var(--canvas-draw-size);
+  height: var(--canvas-draw-size);
   border-radius: 5px;
+}
+
+/* Responsive canvas wrapper.
+   --canvas-size       = outer frame (matches old 700px reference)
+   --canvas-draw-size  = drawable area (matches old 600px reference, ratio 6/7) */
+.canvas-wrapper {
+  --canvas-size: min(90vmin, 700px);
+  --canvas-draw-size: calc(var(--canvas-size) * 6 / 7);
+  --canvas-frame-outer: var(--canvas-size);
+  --canvas-frame-inner-w: calc(var(--canvas-size) * 66 / 70);
+  --canvas-frame-inner-h: calc(var(--canvas-size) * 68 / 70);
+}
+.canvas-wrapper.spectator {
+  --canvas-size: min(60vmin, 490px);
+}
+.canvas-wrapper.spectator-small {
+  --canvas-size: min(35vmin, 280px);
 }
 
 .artist-container {

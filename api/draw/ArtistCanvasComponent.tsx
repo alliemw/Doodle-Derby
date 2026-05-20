@@ -77,10 +77,24 @@ function DrawCanvas(props: { prompt: string }) {
       }
     };
 
+    const measure = () => {
+      const rect = containerRef!.getBoundingClientRect();
+      // Fall back to virtual size if CSS hasn't laid out yet (rare).
+      const w = Math.max(1, Math.round(rect.width)) || VIRTUAL_WIDTH;
+      const h = Math.max(1, Math.round(rect.height)) || VIRTUAL_HEIGHT;
+      return { width: w, height: h };
+    };
+
+    const initial = measure();
+
+    // The Konva stage matches the displayed pixel size, but the backing
+    // canvas stays at the virtual size (VIRTUAL_WIDTH x VIRTUAL_HEIGHT) so
+    // strokes are drawn in virtual coordinates and never need to be
+    // rescaled when the window resizes — we only adjust the layer scale.
     stage = new konva.Stage({
       container: containerRef,
-      width: VIRTUAL_WIDTH,
-      height: VIRTUAL_HEIGHT,
+      width: initial.width,
+      height: initial.height,
     });
 
     canvas = stage.toCanvas();
@@ -94,6 +108,17 @@ function DrawCanvas(props: { prompt: string }) {
       { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
       { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
     );
+    pc.scale(initial.width / VIRTUAL_WIDTH);
+
+    const resizeObserver = new ResizeObserver(() => {
+      const next = measure();
+      if (next.width === stage.width() && next.height === stage.height()) {
+        return;
+      }
+      stage.size({ width: next.width, height: next.height });
+      pc.scale(next.width / VIRTUAL_WIDTH);
+    });
+    resizeObserver.observe(containerRef);
 
     pc.setNetworkCallbacks({
       onStrokeBegin: (payload: NetworkStrokePayload) => {
@@ -136,6 +161,7 @@ function DrawCanvas(props: { prompt: string }) {
 
     onCleanup(() => {
       window.removeEventListener("keydown", handleKeyDown);
+      resizeObserver.disconnect();
       stage.destroy();
     });
   });
@@ -165,8 +191,8 @@ function DrawCanvas(props: { prompt: string }) {
             class="canvas-wrapper"
             style={{
               position: "relative",
-              width: "700px",
-              height: "700px",
+              width: "var(--canvas-size)",
+              height: "var(--canvas-size)",
               margin: "0 auto",
               display: "flex",
               "align-items": "center",
@@ -179,8 +205,8 @@ function DrawCanvas(props: { prompt: string }) {
                 position: "absolute",
                 top: 0,
                 left: 0,
-                width: "700px",
-                height: "700px",
+                width: "var(--canvas-frame-outer)",
+                height: "var(--canvas-frame-outer)",
                 "z-index": 0,
                 "pointer-events": "none", // Ensures clicks go through to the canvas
               }}
@@ -192,8 +218,8 @@ function DrawCanvas(props: { prompt: string }) {
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)",
-                width: "660px",
-                height: "680px",
+                width: "var(--canvas-frame-inner-w)",
+                height: "var(--canvas-frame-inner-h)",
                 "z-index": 1,
                 "pointer-events": "none", // Ensures clicks go through to the canvas
               }}

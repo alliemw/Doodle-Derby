@@ -278,12 +278,19 @@ export class PaintCanvas {
       this.layer.batchDraw();
     };
 
-    const draw = (imageData: ImageData, clicked: boolean = false) => {
-      let currentMousePos = stage.pointerPos as Vector2d;
-      let localPos: [number, number] = [
-        currentMousePos.x - this.layer.getPosition().x,
-        currentMousePos.y - this.layer.getPosition().y,
+    const getCanvasPos = (): [number, number] => {
+      const pointer = stage.pointerPos as Vector2d;
+      const layerPos = this.layer.getPosition();
+      const layerScaleX = this.layer.scaleX() || 1;
+      const layerScaleY = this.layer.scaleY() || 1;
+      return [
+        (pointer.x - layerPos.x) / layerScaleX,
+        (pointer.y - layerPos.y) / layerScaleY,
       ];
+    };
+
+    const draw = (imageData: ImageData, clicked: boolean = false) => {
+      let localPos = getCanvasPos();
       const scaleX = this.virtualWidth / this.canvasWidth;
       const scaleY = this.virtualHeight / this.canvasHeight;
       let networkPos: [number, number] = [
@@ -299,9 +306,13 @@ export class PaintCanvas {
         const networkedSegment = segment.map(
           (p) => [p[0] * scaleX, p[1] * scaleY] as [number, number],
         );
+        const networkedBrush: Brush = {
+          ...this.currentBrush,
+          strokeWidth: this.currentBrush.strokeWidth * scaleX,
+        };
         this.networkCallbacks?.onStrokeMove(
           networkedSegment, // Send scaled points
-          this.currentBrush,
+          networkedBrush,
           this.paintMode,
         );
         submitDraw();
@@ -436,11 +447,7 @@ export class PaintCanvas {
       }
 
       if (this.paintMode == PaintMode.FILL) {
-        let currentMousePos = stage.pointerPos as Vector2d;
-        let pos: [number, number] = [
-          currentMousePos.x - this.layer.getPosition().x,
-          currentMousePos.y - this.layer.getPosition().y,
-        ];
+        let pos = getCanvasPos();
         const scaleX = this.virtualWidth / this.canvasWidth;
         const scaleY = this.virtualHeight / this.canvasHeight;
         const networkPos: [number, number] = [
@@ -457,11 +464,7 @@ export class PaintCanvas {
         return;
       }
 
-      let currentMousePos = stage.pointerPos as Vector2d;
-      let pos: [number, number] = [
-        currentMousePos.x - this.layer.getPosition().x,
-        currentMousePos.y - this.layer.getPosition().y,
-      ];
+      let pos = getCanvasPos();
 
       const scaleX = this.virtualWidth / this.canvasWidth;
       const scaleY = this.virtualHeight / this.canvasHeight;
@@ -470,9 +473,13 @@ export class PaintCanvas {
         pos[1] * scaleY,
       ];
 
+      const networkedBrush: Brush = {
+        ...this.currentBrush,
+        strokeWidth: this.currentBrush.strokeWidth * scaleX,
+      };
       this.networkCallbacks?.onStrokeBegin({
         points: [networkPos],
-        currentBrush: this.currentBrush,
+        currentBrush: networkedBrush,
         paintMode: this.paintMode,
       });
 
@@ -591,6 +598,57 @@ export class PaintCanvas {
 
   public scale(factor: number) {
     this.layer.scale({ x: factor, y: factor });
+    this.layer.batchDraw();
+  }
+
+  // Resizes the backing canvas to new display pixel dimensions. The virtual
+  // coordinate space is unchanged, so in-flight network strokes still map
+  // correctly. Existing pixels are rescaled into the new canvas; undo/redo
+  // history is cleared because its bounding boxes are in the old pixel space.
+  public resize(newWidth: number, newHeight: number) {
+    if (newWidth <= 0 || newHeight <= 0) return;
+    if (newWidth === this.canvasWidth && newHeight === this.canvasHeight) {
+      return;
+    }
+
+    const oldWidth = this.canvasWidth;
+    const oldHeight = this.canvasHeight;
+
+    const snapshot = document.createElement("canvas");
+    snapshot.width = oldWidth;
+    snapshot.height = oldHeight;
+    const snapshotCtx = snapshot.getContext("2d");
+    if (snapshotCtx) {
+      snapshotCtx.drawImage(this.canvas, 0, 0);
+    }
+
+    this.canvas.width = newWidth;
+    this.canvas.height = newHeight;
+
+    this.context.fillStyle = "#ffffff";
+    this.context.fillRect(0, 0, newWidth, newHeight);
+
+    if (snapshotCtx) {
+      this.context.imageSmoothingEnabled = false;
+      this.context.drawImage(
+        snapshot,
+        0, 0, oldWidth, oldHeight,
+        0, 0, newWidth, newHeight,
+      );
+    }
+
+    this.canvasWidth = newWidth;
+    this.canvasHeight = newHeight;
+
+    this.image.width(newWidth);
+    this.image.height(newHeight);
+
+    this.undoBuffer = [];
+    this.redoBuffer = [];
+    this.previousClientImageData = null;
+    this.pointsBuffer = [];
+
+    this.layer.batchDraw();
   }
 
   private getImageData() {
@@ -680,8 +738,8 @@ export class PaintCanvas {
 
   private drawPixel(point: [number, number], color: string, image: ImageData) {
     let colorRGB = this.hexToRGB(color);
-    let width = this.layer.getWidth() as number;
-    let height = this.layer.getHeight() as number;
+    let width = this.canvasWidth;
+    let height = this.canvasHeight;
 
     let y = Math.floor(point[1]);
     let x = Math.floor(point[0]);
@@ -867,8 +925,8 @@ export class PaintCanvas {
   }
 
   fill(x: number, y: number, newColor: string) {
-    let width = this.layer.getWidth() as number;
-    let height = this.layer.getHeight() as number;
+    let width = this.canvasWidth;
+    let height = this.canvasHeight;
 
     const isValidCoord = (x: number, y: number) => {
       return x >= 0 && x < width && y >= 0 && y < height;
