@@ -134,12 +134,6 @@
   align-items: center;
 }
 
-.second-artist-canvas-container {
-  width: 250px;
-  height: 250px;
-  border: 100px solid #000000;
-}
-
 .game-info-container {
   display: flex;
   flex-direction: column;

@@ -243,7 +243,7 @@ function DrawCanvas(props: { prompt: string }) {
 
 export function SpectatorCanvas(props: {
   artist: PlayerState;
-  scale?: number;
+  size?: "small" | "default";
   isSecondArtist?: boolean;
   hiddenPrompt?: string;
 }) {
@@ -259,9 +259,12 @@ export function SpectatorCanvas(props: {
       return;
     }
 
-    const scale = props.scale || 1.0;
-    const displayWidth = VIRTUAL_WIDTH * scale;
-    const displayHeight = VIRTUAL_HEIGHT * scale;
+    const measure = () => {
+      const rect = containerRef!.getBoundingClientRect();
+      const w = Math.max(1, Math.round(rect.width)) || VIRTUAL_WIDTH;
+      const h = Math.max(1, Math.round(rect.height)) || VIRTUAL_HEIGHT;
+      return { width: w, height: h };
+    };
 
     const onStrokeBeginClean = RPC.register(
       "onStrokeBegin",
@@ -306,16 +309,16 @@ export function SpectatorCanvas(props: {
       paintCanvas.redo();
     });
 
+    const initial = measure();
+
+    // Same architecture as the artist: backing canvas locked to virtual
+    // size, stage matches display pixels, layer scaled to fit. Resizes
+    // are then just stage.size() + pc.scale().
     stage = new konva.Stage({
       container: containerRef,
-      width: displayWidth,
-      height: displayHeight,
+      width: initial.width,
+      height: initial.height,
     });
-
-    if (containerRef) {
-      containerRef.style.width = `${displayWidth}px`;
-      containerRef.style.height = `${displayHeight}px`;
-    }
 
     canvas = stage.toCanvas();
 
@@ -325,11 +328,23 @@ export function SpectatorCanvas(props: {
       stage,
       DEFAULT_BRUSH,
       true, // isSpectator
-      { width: displayWidth, height: displayHeight }, // baseSize
-      { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT }, // virtualSize
+      { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
+      { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
     );
+    paintCanvas.scale(initial.width / VIRTUAL_WIDTH);
+
+    const resizeObserver = new ResizeObserver(() => {
+      const next = measure();
+      if (next.width === stage.width() && next.height === stage.height()) {
+        return;
+      }
+      stage.size({ width: next.width, height: next.height });
+      paintCanvas.scale(next.width / VIRTUAL_WIDTH);
+    });
+    resizeObserver.observe(containerRef);
 
     onCleanup(() => {
+      resizeObserver.disconnect();
       stage.destroy();
       onStrokeBeginClean();
       onStrokeEndClean();
@@ -340,10 +355,10 @@ export function SpectatorCanvas(props: {
     });
   });
 
-  const scale = () => props.scale || 1.0;
-  const wrapperSize = () => 700 * scale();
-  const innerWidth = () => 660 * scale();
-  const innerHeight = () => 680 * scale();
+  const wrapperClass = () =>
+    props.size === "small"
+      ? "canvas-wrapper spectator-small"
+      : "canvas-wrapper spectator";
 
   return (
     <>
@@ -366,31 +381,29 @@ export function SpectatorCanvas(props: {
         </div>
 
         <div
-          class="canvas-wrapper"
+          class={wrapperClass()}
           style={{
             position: "relative",
-            width: `${wrapperSize()}px`,
-            height: `${wrapperSize()}px`,
+            width: "var(--canvas-size)",
+            height: "var(--canvas-size)",
             margin: "0 auto",
             display: "flex",
             "align-items": "center",
             "justify-content": "center",
           }}
         >
-          {/* Outer Frame - Scaled */}
           <img
             src="/drawing/canvas_frame.png"
             style={{
               position: "absolute",
               top: 0,
               left: 0,
-              width: `${wrapperSize()}px`,
-              height: `${wrapperSize()}px`,
+              width: "var(--canvas-frame-outer)",
+              height: "var(--canvas-frame-outer)",
               "z-index": 0,
               "pointer-events": "none",
             }}
           />
-          {/* Inner Frame - Scaled */}
           <img
             src="/drawing/canvas_inner_frame.png"
             style={{
@@ -398,13 +411,12 @@ export function SpectatorCanvas(props: {
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: `${innerWidth()}px`,
-              height: `${innerHeight()}px`,
+              width: "var(--canvas-frame-inner-w)",
+              height: "var(--canvas-frame-inner-h)",
               "z-index": 1,
               "pointer-events": "none",
             }}
           />
-          {/* Canvas Container */}
           <div
             ref={containerRef}
             id="container"

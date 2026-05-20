@@ -222,7 +222,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
         <div class="game-info-container">
           <h1 class="round-header">Round {getState("roundsPlayed") || 0}</h1>
           <Show when={props.otherArtist}>
-            <SpectatorCanvas artist={props.otherArtist} scale={0.4} />
+            <SpectatorCanvas artist={props.otherArtist} size="small" />
           </Show>
           <ChatGuesser promptList={[]} artists={[]} notArtist={false} />
           <ReactionBar />
@@ -311,14 +311,12 @@ function SpectatorPage(props: { artistList: PlayerState[] }) {
                 <SpectatorCanvas
                   artist={props.artistList[0]}
                   hiddenPrompt={hiddenPrompts()[0]}
-                  scale={0.7}
                 ></SpectatorCanvas>
               </div>
               <div class="audience-canvas-container">
                 <SpectatorCanvas
                   artist={props.artistList[1]}
                   hiddenPrompt={hiddenPrompts()[1]}
-                  scale={0.7}
                 ></SpectatorCanvas>
               </div>
             </div>
