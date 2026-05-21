@@ -228,7 +228,7 @@ function Lobby() {
       <div id="mainLobby-container" class="lobby-container">
         {/* Header */}
         <header class="lobby-header">
-          <div style={{"flex-shrink":"0"}}>
+          <div>
             <IconButton
             id="exit-btn"
             defaultImg="/lobby/back_icon.png"
@@ -275,7 +275,7 @@ function Lobby() {
               }}
             ></MuteButton>
             <IconButton
-              id="settings-btn"
+              id="icon-btn"
               defaultImg="/lobby/settings_icon.png"
               hoverImg="/lobby/settings_icon_highlighted.png"
               altText="Settings"

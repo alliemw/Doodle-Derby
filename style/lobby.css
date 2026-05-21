@@ -120,7 +120,7 @@ body {
 }
 
 .icon-btn {
-  display: inline-grid;
+  display: flex;
   place-items: center;
   padding: 0;
   border: none;
@@ -129,7 +129,7 @@ body {
   /* Use CSS variables for dynamic sizing */
   justify-content: center;
   align-items: center;
-  width: var(--btn-width, 100px);
+  width: var(--btn-width, 80px);
   height: var(--btn-height, 80px);
   outline: none;
   
@@ -212,7 +212,6 @@ body {
 }
 .lobby-options-container {
   display: flex;
-  align-items: center;
 }
 
 @media screen and (min-width: 800px) {
