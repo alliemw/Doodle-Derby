@@ -248,7 +248,7 @@ function Lobby() {
               gap: "10px",
             }}
           >
-            <h1 style={{ margin: 0 }}>
+            <h1 style={{ margin: 0, "text-align":"end" }}>
               Code: <span id="code-span">{getRoomCode() ?? "Error"}</span>
             </h1>
             <div class="copy-button-container">

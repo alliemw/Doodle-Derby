@@ -269,16 +269,13 @@ body {
   transition: border-color 0.2s ease;
 }
 
-.player-button:hover {
-  border-color: var(--sticky-purple);
-}
+
 .player-button:focus {
   outline: none;
 }
 
 .stick-man:hover {
   /* Visuals appear on hover by changing the border color */
-  border-color: var(--sticky-purple);
   transform: scale(1.05);
 }
 
@@ -391,6 +388,7 @@ body {
   background-color: var(--btn-green);
   border: none;
   padding: 10px 30px;
+  width: 175px;
   font-size: 20px;
   font-family: inherit;
   cursor: pointer;
