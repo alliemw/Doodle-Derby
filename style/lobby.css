@@ -120,19 +120,16 @@ body {
 }
 
 .icon-btn {
-  display: flex;
+  display: grid;
   place-items: center;
   padding: 0;
   border: none;
   background: none;
   cursor: pointer;
   /* Use CSS variables for dynamic sizing */
-  justify-content: center;
-  align-items: center;
   width: var(--btn-width, 80px);
   height: var(--btn-height, 80px);
   outline: none;
-  
 }
 .icon-btn > * {
   grid-column: 1;
@@ -236,11 +233,13 @@ body {
   margin: 0 auto;
   flex-wrap: wrap;
   justify-content: center;
-  max-height: 300px;
+  max-height: 385px;
   overflow-x: hidden;
-  overflow-y:auto;
+  overflow-y: auto;
   align-content: flex-start;
-  
+  /* Top padding fits the host crown (top:-75px); sides fit the 150px-wide crown
+     on a 100px slot; small bottom keeps kick-btn (-5px) visible. */
+  padding: 85px 30px 15px 30px;
 }
 
 .plus-icon {
