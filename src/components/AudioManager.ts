@@ -23,6 +23,9 @@ export const AudioManager = {
   setVolume: (val: number) => {
     setVolume(val);
     localStorage.setItem("volume", String(val));
+    Object.values(activeLoops).forEach((audio) => {
+      audio.volume = val;
+    });
   },
 
   playSound: (src: string) => {

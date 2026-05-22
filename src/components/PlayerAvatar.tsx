@@ -9,10 +9,11 @@ export function PlayerAvatar(props: { player: PlayerState}) {
 
   return (
     <div
+      class="player-avatar"
       style={{
         position: "relative",
-        width: "80px",
-        height: "80px",
+        width: "var(--player-avatar-size, 60px)",
+        height: "var(--player-avatar-size, 60px)",
         display: "flex",
         "justify-content": "center",
         "align-items": "flex-end",

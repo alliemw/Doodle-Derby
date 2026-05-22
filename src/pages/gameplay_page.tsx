@@ -25,6 +25,8 @@ import { AudioManager } from "../components/AudioManager";
 import { routerNavigate } from "../../api/tiny_router";
 import { PlayerList } from "../components/PlayerList";
 import { MuteButton } from "../components/MuteButton";
+import { IconButton } from "../components/IconButton";
+import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 
 // Functions here are throwaways and only serve as substitutes
 const randInt = (length: number) => {
@@ -159,7 +161,7 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
 
   const artistsHavePrompts = () => {
     const artists = Object.values(getParticipants()).filter((player) =>
-      player.getState("isArtist")
+      player.getState("isArtist"),
     );
     return (
       artists.length >= 2 &&
@@ -222,21 +224,24 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
 
   return (
     <>
-      <Show when={isArtist()} fallback={
-        <div class="waiting-screen">
-          <img src="/sheep_thinking.gif" alt="thinking sheep" class="waiting-sheep" />
-          <div class="waiting-content">
-            <p class="waiting-label">Waiting for artist to pick prompt...</p>
+      <Show
+        when={isArtist()}
+        fallback={
+          <div class="waiting-screen">
+            <img
+              src="/sheep_thinking.gif"
+              alt="thinking sheep"
+              class="waiting-sheep"
+            />
+            <div class="waiting-content">
+              <p class="waiting-label">Waiting for artist to pick prompt...</p>
+            </div>
           </div>
-        </div>
-      }>
+        }
+      >
         <RandomWordSelection
           onSelected={(word) => {
-            RPC.call(
-              "artistPickedPrompt",
-              { prompt: word },
-              RPC.Mode.HOST,
-            );
+            RPC.call("artistPickedPrompt", { prompt: word }, RPC.Mode.HOST);
             RPC.call("pickedPrompt", {}, RPC.Mode.ALL);
           }}
         />
@@ -250,6 +255,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
   const [isNarrow, setIsNarrow] = createSignal(
     typeof window !== "undefined" && window.innerWidth < NARROW_BREAKPOINT,
   );
+  const [isSettingsOpen, setIsSettingsOpen] = createSignal(false);
 
   onMount(() => {
     const update = () => setIsNarrow(window.innerWidth < NARROW_BREAKPOINT);
@@ -260,51 +266,119 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
 
   return (
     <div class="artist-container">
-      <div class="artist-topbar">
-        <h1 class="round-header artist-round-header">
-          Round {getState("roundsPlayed") || 0}
-        </h1>
-        <MuteButton
-          onClick={() => {
-            if (!AudioManager.isMuted())
-              AudioManager.playLoop("/audio/DDsong.mp3");
-          }}
+      <Show when={isSettingsOpen()}>
+        <SettingsModal
+          timerSeconds={getState("timer-seconds") ?? DEFAULT_TIMER}
+          onClose={() => setIsSettingsOpen(false)}
+          hideGameSettings={true}
         />
-      </div>
+      </Show>
 
       <div class="artist-main-area">
         <div class="artist-canvas-area">
           <div class="artist-canvas-stack">
             <ArtistCanvasComponent prompt={me().getState("prompt")} />
-            <Show when={!isNarrow()}>
-              <div class="artist-players-area artist-players-area-wide">
-                <PlayerList useRowLayout={true} />
-              </div>
-            </Show>
           </div>
         </div>
 
-        <div class="artist-side-panel">
-          <div class="artist-other-area">
-            <Show when={props.otherArtist}>
-              <SpectatorCanvas artist={props.otherArtist} size="small" />
-            </Show>
-          </div>
-          <div class="artist-chat-area">
-            <div class="artist-chat-area-chat">
-              <ChatGuesser promptList={[]} artists={[]} notArtist={false} />
+        <Show
+          when={!isNarrow()}
+          fallback={
+            <div class="artist-other-area">
+              <Show when={props.otherArtist}>
+                <SpectatorCanvas artist={props.otherArtist} size="small" />
+              </Show>
             </div>
-            <div class="artist-chat-area-emotes">
-              <ReactionBar />
+          }
+        >
+          <div class="artist-side-panel">
+            <div class="artist-topbar">
+              <h1 class="round-header artist-round-header">
+                Derby {(getState("roundsPlayed") ?? 0) + 1}
+              </h1>
+              <div
+                style={{
+                  display: "flex",
+                  "align-items": "center",
+                  gap: "10px",
+                }}
+              >
+                <MuteButton
+                  onClick={() => {
+                    if (!AudioManager.isMuted())
+                      AudioManager.playLoop("/audio/DDsong.mp3");
+                  }}
+                />
+                <IconButton
+                  id="icon-btn"
+                  defaultImg="/lobby/settings_icon.png"
+                  hoverImg="/lobby/settings_icon_highlighted.png"
+                  altText="Settings"
+                  onClick={() => setIsSettingsOpen(true)}
+                />
+              </div>
             </div>
-          </div>
-          <Show when={isNarrow()}>
+            <div class="artist-side-middle">
+              <div class="artist-other-area">
+                <Show when={props.otherArtist}>
+                  <SpectatorCanvas artist={props.otherArtist} size="small" />
+                </Show>
+              </div>
+              <div class="artist-chat-area">
+                <div class="artist-chat-area-chat">
+                  <ChatGuesser promptList={[]} artists={[]} notArtist={false} />
+                </div>
+                <div class="artist-chat-area-emotes">
+                  <ReactionBar />
+                </div>
+              </div>
+            </div>
             <div class="artist-players-area">
               <PlayerList useRowLayout={true} />
             </div>
-          </Show>
-        </div>
+          </div>
+        </Show>
       </div>
+
+      <Show when={isNarrow()}>
+        <div class="artist-topbar artist-topbar-bottom">
+          <h1 class="round-header artist-round-header">
+            Derby {(getState("roundsPlayed") ?? 0) + 1}
+          </h1>
+          <div
+            style={{
+              display: "flex",
+              "align-items": "center",
+              gap: "10px",
+            }}
+          >
+            <MuteButton
+              onClick={() => {
+                if (!AudioManager.isMuted())
+                  AudioManager.playLoop("/audio/DDsong.mp3");
+              }}
+            />
+            <IconButton
+              id="icon-btn"
+              defaultImg="/lobby/settings_icon.png"
+              hoverImg="/lobby/settings_icon_highlighted.png"
+              altText="Settings"
+              onClick={() => setIsSettingsOpen(true)}
+            />
+          </div>
+        </div>
+        <div class="artist-chat-area artist-chat-area-bottom">
+          <div class="artist-chat-area-chat">
+            <ChatGuesser promptList={[]} artists={[]} notArtist={false} />
+          </div>
+          <div class="artist-chat-area-emotes">
+            <ReactionBar />
+          </div>
+        </div>
+        <div class="artist-players-area">
+          <PlayerList useRowLayout={true} />
+        </div>
+      </Show>
     </div>
   );
 }
@@ -320,7 +394,7 @@ function Gameplay() {
     const interval = setInterval(() => {
       let participants = Object.values(getParticipants());
       participants = participants.filter((player) =>
-        player.getState("isArtist")
+        player.getState("isArtist"),
       );
 
       const meIsArtist = me().getState("isArtist") ?? false;
@@ -467,10 +541,15 @@ export function RandomWordSelection(props: {
   };
 
   return (
-    <Show when={!selected()}
+    <Show
+      when={!selected()}
       fallback={
         <div class="waiting-screen">
-          <img src="/sheep_thinking.gif" alt="thinking sheep" class="waiting-sheep" />
+          <img
+            src="/sheep_thinking.gif"
+            alt="thinking sheep"
+            class="waiting-sheep"
+          />
           <div class="waiting-content">
             <p class="waiting-label">Waiting for other artist...</p>
           </div>

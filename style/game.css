@@ -84,6 +84,7 @@
   background-color: #e6e6e6;
   border: black 2px solid;
   border-radius: 12px;
+  margin:0;
 }
 
 /* The prompt header text */
@@ -101,6 +102,7 @@
   flex-direction: row;
   justify-content: center;
   width: 100%;
+  height:25px;
 }
 .draw-header {
   text-align: center;
@@ -249,25 +251,39 @@
 }
 
 .artist-side-panel {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 500px;
+  min-height: 0;
+}
+
+.artist-side-middle {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
+  align-items: stretch;
   gap: 8px;
-  flex: 0 1 500px;
-  min-width: 260px;
-  max-width: 500px;
+  width: 100%;
+  min-width: 0;
 }
 
 .artist-other-area {
-  --artist-other-canvas-size: clamp(180px, 28vmin, 240px);
+  --artist-other-canvas-size: clamp(80px, 22vmin, 240px);
 
   display: flex;
   justify-content: center;
   flex: 0 0 var(--artist-other-canvas-size);
   width: var(--artist-other-canvas-size);
   min-width: 0;
+}
+
+.artist-side-panel .artist-other-area {
+  --artist-other-canvas-size: clamp(80px, 45cqi, 240px);
 }
 
 .artist-other-area .draw-root-container {
@@ -292,9 +308,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 0 1 260px;
-  width: min(260px, 100%);
-  max-width: 280px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -326,61 +340,217 @@
 }
 
 .artist-players-area {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+}
+
+
+/* Player list — compact under flex pressure via container queries. */
+.player-list {
+  --player-card-width: 220px;
+  --player-card-min-width: 120px;
+  --player-card-gap: 12px;
+  --player-card-padding: 8px;
+  --player-avatar-size: 80px;
+  --player-name-size: 1.1rem;
+  --player-score-size: 0.9rem;
+
+  container-type: inline-size;
+  display: flex;
+  gap: 6px;
+  padding: 16px;
+  background: #b3d1ff;
+  border-radius: 16px;
+  border: black 2px solid;
+  max-height: 600px;
+  scrollbar-width: thin;
+  box-sizing: border-box;
   min-width: 0;
 }
 
-.artist-players-area-wide {
-  width: min(100%, calc(var(--canvas-size, 700px) + 80px));
-  max-width: 100%;
+.player-list-row {
+  flex-direction: row;
+  width: min(100%, 1000px);
+  max-width: 1000px;
+  min-height: 96px;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.player-list-column {
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.player-list-card {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  gap: var(--player-card-gap);
+  padding: var(--player-card-padding);
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  align-self: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.player-list-card.is-me {
+  background: rgba(255, 255, 255, 0.87);
+  border: 2px solid #fff;
+}
+
+.player-list-row .player-list-card {
+  flex: 1 1 var(--player-card-width);
+  min-width: var(--player-card-min-width);
+  min-height: 96px;
+}
+
+.player-list-column .player-list-card {
+  width: 100%;
+  flex-shrink: 1;
+}
+
+.player-list-card-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.player-list-card-name {
+  font-weight: bold;
+  color: #53524d;
+  font-size: var(--player-name-size);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-list-card-score {
+  color: #53524d;
+  font-size: var(--player-score-size);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* As the player list's own inline size shrinks (because the flex parent
+   squeezes it), step down avatar size, card width, gap, and font sizes
+   so more cards stay visible without horizontal scrolling. */
+@container (max-width: 720px) {
+  .player-list {
+    --player-card-width: 180px;
+    --player-card-min-width: 110px;
+    --player-avatar-size: 64px;
+    --player-card-gap: 10px;
+    --player-name-size: 1rem;
+    --player-score-size: 0.85rem;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 80px;
+  }
+}
+
+@container (max-width: 520px) {
+  .player-list {
+    --player-card-width: 150px;
+    --player-card-min-width: 96px;
+    --player-avatar-size: 52px;
+    --player-card-gap: 8px;
+    --player-card-padding: 6px;
+    --player-name-size: 0.95rem;
+    --player-score-size: 0.8rem;
+    padding: 10px;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 68px;
+  }
+}
+
+@container (max-width: 360px) {
+  .player-list {
+    --player-card-width: 120px;
+    --player-card-min-width: 80px;
+    --player-avatar-size: 42px;
+    --player-card-gap: 6px;
+    --player-card-padding: 4px;
+    --player-name-size: 0.85rem;
+    --player-score-size: 0.75rem;
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 56px;
+  }
+}
+
+@container (max-width: 240px) {
+  .player-list {
+    --player-card-width: 90px;
+    --player-card-min-width: 60px;
+    --player-avatar-size: 32px;
+    --player-card-gap: 4px;
+    --player-card-padding: 3px;
+    --player-name-size: 0.75rem;
+    --player-score-size: 0.65rem;
+    padding: 6px;
+    gap: 3px;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 900px) {
-  .artist-main-area {
-    flex-direction: column;
-    align-items: center;
-  }
-
   .artist-canvas-area .draw-root-container {
-    --canvas-size: clamp(260px, min(68vh, calc(100vw - 150px)), 620px);
+    --canvas-size: clamp(180px, min(60vh, calc(100vw - 300px)), 620px);
   }
 
-  .artist-side-panel {
-    width: min(100%, 720px);
-    max-width: 720px;
-    min-width: 0;
+  /* Narrow layout: main-area holds canvas + other-canvas only.
+     Header, chat, emotes, and player list become siblings below. */
+  .artist-main-area {
+    align-items: flex-start;
   }
 
-  .artist-chat-area {
-    flex: 1 1 300px;
-    max-width: 380px;
+  .artist-topbar-bottom {
+    width: 100%;
+    flex: 0 0 auto;
+    align-self: stretch;
+    justify-content: space-between;
   }
 
-  .artist-players-area {
-    flex: 1 0 100%;
+  .artist-chat-area-bottom {
+    width: 100%;
+    flex: 0 0 auto;
+    align-self: stretch;
+    flex-direction: column;
+  }
+
+  .artist-chat-area-bottom .chat-container {
+    height: clamp(120px, 22vh, 200px);
   }
 }
 
 @media (max-width: 560px) {
-  .artist-side-panel {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-  }
-
   .artist-other-area {
     flex: 0 0 auto;
   }
 
   .artist-chat-area {
-    flex: 1 1 0;
-    width: auto;
-    min-width: 145px;
-    max-width: none;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .artist-chat-area .chat-container {
@@ -409,9 +579,6 @@
     width: clamp(28px, 8vw, 42px);
   }
 
-  .artist-players-area {
-    flex: 1 0 100%;
-  }
 }
 
 

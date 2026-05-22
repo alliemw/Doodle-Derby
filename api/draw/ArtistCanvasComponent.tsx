@@ -333,14 +333,7 @@ export function SpectatorCanvas(props: {
       <div class="draw-root-container">
         <div class="spectator-header-container">
           <PlayerAvatar player={props.artist}></PlayerAvatar>
-          <div
-            style={{
-              display: "flex",
-              "justify-content": "flex-end",
-              "align-items": "flex-end",
-              gap: "40px",
-            }}
-          >
+          <div>
             <div class="spectator-name-header">
               {props.artist.getState("name")}
             </div>

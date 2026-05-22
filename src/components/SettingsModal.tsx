@@ -13,9 +13,12 @@ const MIN_ROUNDS = 1;
 export function SettingsModal(props: {
   timerSeconds: number;
   onClose: () => void;
+  hideGameSettings?: boolean;
 }) {
-  const [activeTab, setActiveTab] = createSignal("Game Settings");
-  const tabs = ["Game Settings", "Audio", "Controls"];
+  const tabs = props.hideGameSettings
+    ? ["Audio", "Controls"]
+    : ["Game Settings", "Audio", "Controls"];
+  const [activeTab, setActiveTab] = createSignal(tabs[0]);
   const tabImgs: Record<string, string[]> = {
     "Game Settings": [
       "/settings/golden_apple_icon.png",
@@ -142,19 +145,15 @@ export function SettingsModal(props: {
           </div>
 
           {/* Right Side - Dynamic Content */}
-          <div class="settings-main">
-            <div
-              style={{
-                position: "relative",
-                top: "0%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-              }}
+          <div class="settings-main-wrapper">
+            <button
+              class="kick-btn settings-close-btn"
+              onClick={props.onClose}
+              aria-label="Close settings"
             >
-              <span class="close" onClick={props.onClose}>
-                &times;
-              </span>
-            </div>
+              &times;
+            </button>
+            <div class="settings-main">
             <div class="settings-content">
               <Show when={activeTab() === "Game Settings"}>
                 <div class="settings-section">
@@ -289,6 +288,7 @@ export function SettingsModal(props: {
                 </div>
               </Show> */}
             </div>
+            </div>
           </div>
         </div>
       </div>
@@ -345,6 +345,7 @@ function SettingsHeader(props: {
   baseSrc: string;
   activeSrc: string;
   label: string;
+  description? : string;
   activeTab: string;
   onClick(): void;
 }) {
@@ -352,48 +353,52 @@ function SettingsHeader(props: {
     return props.activeTab === props.label;
   }
 
+  const src = () => (isActive() ? props.activeSrc : props.baseSrc);
+
   return (
     <button
       style={{
         background: "none",
         border: "none",
-        position: "relative",
         cursor: "pointer",
         padding: "0",
         width: "200px",
         height: "75px",
         overflow: "hidden",
+        display: "flex",
+        "align-items": "center",
+        "justify-content": "center",
+        position: "relative",
       }}
       onClick={() => {
         props.onClick();
       }}
     >
       <img
-        src={isActive() ? props.activeSrc : props.baseSrc}
+        src={src()}
         style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)", // Centers the image
-          width: "250px", // You can make this 500px and the container won't budge
+          width: "250px",
           height: "auto",
-          "pointer-events": "none", // Good for transparent images so they don't block clicks
+          "pointer-events": "none",
+          "flex-shrink": "0",
         }}
       />
       <div
         style={{
           position: "absolute",
-          top: "62%",
-          left: "48%",
-          transform: "translate(-50%, -50%)",
-          color: "white", // Ensure text is visible over the image
+          inset: "0",
+          display: "flex",
+          "align-items": "center",
+          "justify-content": "center",
+          "padding-top": "18px",
+          "padding-right": "8px",
+          color: "white",
           "font-weight": "bold",
-          "pointer-events": "none", // Clicks pass through to the button
-          "text-shadow": "1px 1px 2px rgba(0,0,0,0.5)", // Better readability
+          "pointer-events": "none",
+          "text-shadow": "1px 1px 2px rgba(0,0,0,0.5)",
           "font-family": '"ComicSansMS", "Comic Sans", cursive',
-          width: "100%",
-          "text-align": "center",
-          "-webkit-mask-image": `url(${isActive() ? props.activeSrc : props.baseSrc})`,
+          "-webkit-mask-image": `url(${src()})`,
+          "mask-image": `url(${src()})`,
           "mask-size": "250px auto",
           "mask-repeat": "no-repeat",
           "mask-position": "center",
