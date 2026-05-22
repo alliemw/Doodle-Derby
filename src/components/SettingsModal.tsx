@@ -4,9 +4,6 @@ import { AudioManager } from "./AudioManager";
 import "../../style/settings.css";
 
 export const DEFAULT_TIMER = 30;
-const MIN_TIMER = 15;
-const MAX_TIMER = 180;
-const TIME_INCREMENT = 15;
 
 const MIN_ROUNDS = 1;
 
@@ -14,10 +11,13 @@ export function SettingsModal(props: {
   timerSeconds: number;
   onClose: () => void;
   hideGameSettings?: boolean;
+  hideControls?: boolean;
 }) {
-  const tabs = props.hideGameSettings
-    ? ["Audio", "Controls"]
-    : ["Game Settings", "Audio", "Controls"];
+  const tabs = [
+    ...(props.hideGameSettings ? [] : ["Game Settings"]),
+    "Audio",
+    ...(props.hideControls ? [] : ["Controls"]),
+  ];
   const [activeTab, setActiveTab] = createSignal(tabs[0]);
   const tabImgs: Record<string, string[]> = {
     "Game Settings": [
@@ -45,46 +45,8 @@ export function SettingsModal(props: {
     getState("number-rounds") ?? MIN_ROUNDS,
   );
 
-  const [eraseKey, setEraseKey] = createSignal(
-    myPlayer().getState("hotkey-erase") ?? "e",
-  );
-  const [undoKey, setUndoKey] = createSignal(
-    myPlayer().getState("hotkey-undo") ?? "u",
-  );
-  const [redoKey, setRedoKey] = createSignal(
-    myPlayer().getState("hotkey-redo") ?? "r",
-  );
-  const [fillKey, setFillKey] = createSignal(
-    myPlayer().getState("hotkey-fill") ?? "f",
-  );
-  const [drawKey, setDrawKey] = createSignal(
-    myPlayer().getState("hotkey-draw") ?? "b",
-  );
-  const [listeningAction, setListeningAction] = createSignal<string | null>(
-    null,
-  );
-
-  const updateLocalTime = (amt: number) => {
-    setLocalTimer((prev) =>
-      Math.max(MIN_TIMER, Math.min(MAX_TIMER, prev + amt)),
-    );
-  };
-
   const updateLocalRounds = (amt: number) => {
     setLocalRounds((prev) => Math.max(MIN_ROUNDS, prev + amt));
-  };
-
-  const isKeyTaken = (key: string, currentAction: string) => {
-    const currentBindings: Record<string, string> = {
-      Erase: eraseKey(),
-      Undo: undoKey(),
-      Redo: redoKey(),
-      Fill: fillKey(),
-    };
-
-    return Object.entries(currentBindings).some(
-      ([action, binding]) => action !== currentAction && binding === key,
-    );
   };
 
   const handleConfirm = () => {
@@ -99,20 +61,6 @@ export function SettingsModal(props: {
   const handleReset = () => {
     setLocalTimer(DEFAULT_TIMER);
     setLocalRounds(MIN_ROUNDS);
-  };
-
-  const handleControlsConfirm = () => {
-    const me = myPlayer();
-    me.setState("hotkey-erase", eraseKey(), true);
-    me.setState("hotkey-undo", undoKey(), true);
-    me.setState("hotkey-redo", redoKey(), true);
-    me.setState("hotkey-fill", fillKey(), true);
-  };
-  const handleControlsReset = () => {
-    setEraseKey("e");
-    setUndoKey("u");
-    setRedoKey("r");
-    setFillKey("f");
   };
 
   return (
@@ -203,82 +151,7 @@ export function SettingsModal(props: {
               </Show>
 
               <Show when={activeTab() === "Controls"}>
-                <div class="settings-section">
-                  <h3>Input Settings</h3>
-                  <div class="hotkey-list">
-                    <HotkeyRow
-                      label="Erase"
-                      value={eraseKey()}
-                      isListening={listeningAction() === "Erase"}
-                      onStart={() => setListeningAction("Erase")}
-                      onUpdate={(k) => {
-                        if (!isKeyTaken(k, "Erase")) setEraseKey(k);
-                        setListeningAction(null); // Stop listening after update
-                      }}
-                      onCancel={() => setListeningAction(null)}
-                    />
-                    <HotkeyRow
-                      label="Undo"
-                      value={undoKey()}
-                      isListening={listeningAction() === "Undo"}
-                      onStart={() => setListeningAction("Undo")}
-                      onUpdate={(k) => {
-                        if (!isKeyTaken(k, "Undo")) setUndoKey(k);
-                        setListeningAction(null); // Stop listening after update
-                      }}
-                      onCancel={() => setListeningAction(null)}
-                    />
-                    <HotkeyRow
-                      label="Redo"
-                      value={redoKey()}
-                      isListening={listeningAction() === "Redo"}
-                      onStart={() => setListeningAction("Redo")}
-                      onUpdate={(k) => {
-                        if (!isKeyTaken(k, "Redo")) setRedoKey(k);
-                        setListeningAction(null); // Stop listening after update
-                      }}
-                      onCancel={() => setListeningAction(null)}
-                    />
-                    <HotkeyRow
-                      label="Fill"
-                      value={fillKey()}
-                      isListening={listeningAction() === "Fill"}
-                      onStart={() => setListeningAction("Fill")}
-                      onUpdate={(k) => {
-                        if (!isKeyTaken(k, "Fill")) setFillKey(k);
-                        setListeningAction(null); // Stop listening after update
-                      }}
-                      onCancel={() => setListeningAction(null)}
-                    />
-                    <HotkeyRow
-                      label="Draw"
-                      value={drawKey()}
-                      isListening={listeningAction() === "Draw"}
-                      onStart={() => setListeningAction("Draw")}
-                      onUpdate={(k) => {
-                        if (!isKeyTaken(k, "Draw")) setDrawKey(k);
-                        setListeningAction(null); // Stop listening after update
-                      }}
-                      onCancel={() => setListeningAction(null)}
-                    />
-                  </div>
-
-                  <div
-                    class="settings-actions"
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      "margin-top": "20px",
-                    }}
-                  >
-                    <button class="reset-btn" onClick={handleControlsReset}>
-                      Reset
-                    </button>
-                    <button class="confirm-btn" onClick={handleControlsConfirm}>
-                      Confirm
-                    </button>
-                  </div>
-                </div>
+                <ControlsTab />
               </Show>
 
               {/* <Show when={activeTab() === "Drawing"}>
@@ -291,6 +164,134 @@ export function SettingsModal(props: {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ControlsTab() {
+  const me = myPlayer();
+  const [eraseKey, setEraseKey] = createSignal(
+    me.getState("hotkey-erase") ?? "e",
+  );
+  const [undoKey, setUndoKey] = createSignal(
+    me.getState("hotkey-undo") ?? "u",
+  );
+  const [redoKey, setRedoKey] = createSignal(
+    me.getState("hotkey-redo") ?? "r",
+  );
+  const [fillKey, setFillKey] = createSignal(
+    me.getState("hotkey-fill") ?? "f",
+  );
+  const [drawKey, setDrawKey] = createSignal(
+    me.getState("hotkey-draw") ?? "b",
+  );
+  const [listeningAction, setListeningAction] = createSignal<string | null>(
+    null,
+  );
+
+  const isKeyTaken = (key: string, currentAction: string) => {
+    const currentBindings: Record<string, string> = {
+      Erase: eraseKey(),
+      Undo: undoKey(),
+      Redo: redoKey(),
+      Fill: fillKey(),
+    };
+
+    return Object.entries(currentBindings).some(
+      ([action, binding]) => action !== currentAction && binding === key,
+    );
+  };
+
+  const handleControlsConfirm = () => {
+    me.setState("hotkey-erase", eraseKey(), true);
+    me.setState("hotkey-undo", undoKey(), true);
+    me.setState("hotkey-redo", redoKey(), true);
+    me.setState("hotkey-fill", fillKey(), true);
+  };
+
+  const handleControlsReset = () => {
+    setEraseKey("e");
+    setUndoKey("u");
+    setRedoKey("r");
+    setFillKey("f");
+  };
+
+  return (
+    <div class="settings-section">
+      <h3>Input Settings</h3>
+      <div class="hotkey-list">
+        <HotkeyRow
+          label="Erase"
+          value={eraseKey()}
+          isListening={listeningAction() === "Erase"}
+          onStart={() => setListeningAction("Erase")}
+          onUpdate={(k) => {
+            if (!isKeyTaken(k, "Erase")) setEraseKey(k);
+            setListeningAction(null);
+          }}
+          onCancel={() => setListeningAction(null)}
+        />
+        <HotkeyRow
+          label="Undo"
+          value={undoKey()}
+          isListening={listeningAction() === "Undo"}
+          onStart={() => setListeningAction("Undo")}
+          onUpdate={(k) => {
+            if (!isKeyTaken(k, "Undo")) setUndoKey(k);
+            setListeningAction(null);
+          }}
+          onCancel={() => setListeningAction(null)}
+        />
+        <HotkeyRow
+          label="Redo"
+          value={redoKey()}
+          isListening={listeningAction() === "Redo"}
+          onStart={() => setListeningAction("Redo")}
+          onUpdate={(k) => {
+            if (!isKeyTaken(k, "Redo")) setRedoKey(k);
+            setListeningAction(null);
+          }}
+          onCancel={() => setListeningAction(null)}
+        />
+        <HotkeyRow
+          label="Fill"
+          value={fillKey()}
+          isListening={listeningAction() === "Fill"}
+          onStart={() => setListeningAction("Fill")}
+          onUpdate={(k) => {
+            if (!isKeyTaken(k, "Fill")) setFillKey(k);
+            setListeningAction(null);
+          }}
+          onCancel={() => setListeningAction(null)}
+        />
+        <HotkeyRow
+          label="Draw"
+          value={drawKey()}
+          isListening={listeningAction() === "Draw"}
+          onStart={() => setListeningAction("Draw")}
+          onUpdate={(k) => {
+            if (!isKeyTaken(k, "Draw")) setDrawKey(k);
+            setListeningAction(null);
+          }}
+          onCancel={() => setListeningAction(null)}
+        />
+      </div>
+
+      <div
+        class="settings-actions"
+        style={{
+          display: "flex",
+          gap: "10px",
+          "margin-top": "20px",
+        }}
+      >
+        <button class="reset-btn" onClick={handleControlsReset}>
+          Reset
+        </button>
+        <button class="confirm-btn" onClick={handleControlsConfirm}>
+          Confirm
+        </button>
       </div>
     </div>
   );

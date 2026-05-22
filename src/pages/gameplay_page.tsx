@@ -294,7 +294,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
           <div class="artist-side-panel">
             <div class="artist-topbar">
               <h1 class="round-header artist-round-header">
-                Derby {(getState("roundsPlayed") ?? 0) + 1}
+                Derby #{(getState("roundsPlayed") ?? 0) + 1}
               </h1>
               <div
                 style={{
@@ -343,7 +343,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
       <Show when={isNarrow()}>
         <div class="artist-topbar artist-topbar-bottom">
           <h1 class="round-header artist-round-header">
-            Derby {(getState("roundsPlayed") ?? 0) + 1}
+            Derby #{(getState("roundsPlayed") ?? 0) + 1}
           </h1>
           <div
             style={{
