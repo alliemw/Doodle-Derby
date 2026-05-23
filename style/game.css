@@ -87,6 +87,47 @@
   margin:0;
 }
 
+.round-timer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  min-width: 75px;
+  max-width: 100%;
+  padding: 5px 16px;
+  background-color: #fff3a0;
+  border: black 2px solid;
+  border-radius: 12px;
+  font-family: "ComicSansMS", "Comic Sans", cursive;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  flex: 0 0 auto;
+}
+
+.spectator-header > .round-timer {
+  align-self: flex-start;
+}
+
+/* Spectator header switches to row layout at this breakpoint
+   (see spectator-page.css). Center the timer along the row's cross axis. */
+@media (max-width: 1200px) {
+  .spectator-header > .round-timer {
+    align-self: center;
+  }
+}
+
+.round-timer-warning {
+  background-color: #ffb3b3;
+  color: #b30000;
+  animation: round-timer-pulse 1s ease-out infinite;
+}
+
+@keyframes round-timer-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
 /* The prompt header text */
 .draw-header,
 .spectator-name-header {

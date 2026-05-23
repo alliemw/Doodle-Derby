@@ -3,9 +3,12 @@ import { createSignal, For, Show, createEffect, onCleanup } from "solid-js";
 import { AudioManager } from "./AudioManager";
 import "../../style/settings.css";
 
-export const DEFAULT_TIMER = 30;
+export const DEFAULT_TIMER = 60;
 
 const MIN_ROUNDS = 1;
+const MIN_TIMER = 10;
+const MAX_TIMER = 300;
+const TIMER_INCREMENT = 10;
 
 export function SettingsModal(props: {
   timerSeconds: number;
@@ -47,6 +50,12 @@ export function SettingsModal(props: {
 
   const updateLocalRounds = (amt: number) => {
     setLocalRounds((prev) => Math.max(MIN_ROUNDS, prev + amt));
+  };
+
+  const updateLocalTimer = (amt: number) => {
+    setLocalTimer((prev) =>
+      Math.min(MAX_TIMER, Math.max(MIN_TIMER, prev + amt)),
+    );
   };
 
   const handleConfirm = () => {
@@ -119,11 +128,11 @@ export function SettingsModal(props: {
                       value={`${localRounds()}`}
                       onUpdate={(dir) => updateLocalRounds(dir)}
                     />
-                    {/* <SettingRow
+                    <SettingRow
                       label="Round Timer"
                       value={`${localTimer()}s`}
-                      onUpdate={(dir) => updateLocalTime(dir * TIME_INCREMENT)}
-                    /> */}
+                      onUpdate={(dir) => updateLocalTimer(dir * TIMER_INCREMENT)}
+                    />
                     <div
                       class="settings-actions"
                       style={{

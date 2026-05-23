@@ -1,14 +1,37 @@
 .podium-page .podium-container {
+  /* All three bars share the same width. Cap it so the tallest image
+     (1st place, 482x867 aspect) still fits vertically below the player
+     card. 867/482 ≈ 1.8, and we reserve roughly 30vh for the card on top,
+     so bar width ≤ 60vh * 482/867 ≈ 0.334 * viewport-height. */
+  --podium-width: min(
+    500px,
+    28vw,
+    calc(60vh * 482 / 867)
+  );
+
   display: flex;
   flex-direction: row;
+  align-items: flex-end;
   justify-content: center;
+  gap: clamp(8px, 1.5vw, 24px);
   width: 100vw;
+  padding-top: 50px;
   height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .cloudcontainer {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  border: 1px solid black;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.cloudcontainer .cloudbutton {
+  pointer-events: auto;
 }
 
 .cloudbutton {
@@ -48,22 +71,33 @@
   align-items: center;
   justify-content: flex-end;
   transform-origin: bottom;
-  scale: .80;
+  width: var(--podium-width);
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.podium-page .podium img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .podium-page .player-score-card {
-  padding: 20px;
+  padding: clamp(6px, 1vw, 20px);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: clamp(4px, 0.8vw, 10px);
   transition: scale ease-in-out 1s;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .podium-page .player-name-label {
   font-weight: bold;
-  font-size: 2rem;
+  font-size: clamp(0.9rem, 2vw, 2rem);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -73,15 +107,17 @@
 
 .podium-page .player-score {
   font-weight: bold;
-  font-size: 2.5rem;
+  font-size: clamp(1rem, 2.4vw, 2.5rem);
   text-align: center;
   white-space: nowrap;
   width: 100%;
 }
 
 .podium-page .player-icon-wrapper {
-  width: 250px;
-  height: 250px;
+  width: clamp(80px, 14vw, 250px);
+  height: auto;
+  max-width:70%;
+  aspect-ratio: 1 / 1;
 }
 
 .podium-page .mini-stick-man {

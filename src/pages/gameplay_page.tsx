@@ -1,7 +1,7 @@
 import { Page } from "../../api/page";
 import { render, For } from "solid-js/web";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
-import { ChatGuesser, GuessElement } from "../../api/guess/GuessComponent";
+import { ChatGuesser } from "../../api/guess/GuessComponent";
 
 import {
   getParticipants,
@@ -27,6 +27,36 @@ import { PlayerList } from "../components/PlayerList";
 import { MuteButton } from "../components/MuteButton";
 import { IconButton } from "../components/IconButton";
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
+
+export function TimerDisplay() {
+  const [secondsLeft, setSecondsLeft] = createSignal<number | null>(null);
+
+  onMount(() => {
+    const tick = () => {
+      const endTime = getState("round-end-time");
+      if (typeof endTime !== "number") {
+        setSecondsLeft(null);
+        return;
+      }
+      setSecondsLeft(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));
+    };
+
+    tick();
+    const id = setInterval(tick, 250);
+    onCleanup(() => clearInterval(id));
+  });
+
+  return (
+    <Show when={secondsLeft() !== null}>
+      <div
+        class="round-timer"
+        classList={{ "round-timer-warning": (secondsLeft() ?? 0) <= 10 }}
+      >
+        {secondsLeft()}s
+      </div>
+    </Show>
+  );
+}
 
 // Functions here are throwaways and only serve as substitutes
 const randInt = (length: number) => {
@@ -296,6 +326,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
               <h1 class="round-header artist-round-header">
                 Derby #{(getState("roundsPlayed") ?? 0) + 1}
               </h1>
+              <TimerDisplay />
               <div
                 style={{
                   display: "flex",
@@ -345,6 +376,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
           <h1 class="round-header artist-round-header">
             Derby #{(getState("roundsPlayed") ?? 0) + 1}
           </h1>
+          <TimerDisplay />
           <div
             style={{
               display: "flex",
@@ -388,9 +420,23 @@ import { SpectatorPage } from "./spectator_page";
 function Gameplay() {
   let [artists, setArtists] = createSignal<PlayerState[]>([]);
   let [isArtist, setIsArtist] = createSignal(false);
-  let [numPlayersGuessed, setNumPlayersGuessed] = createSignal(0);
+  let numPlayersGuessed = 0;
+  let roundEnded = false;
+
+  const endRound = (reason: string) => {
+    if (roundEnded) return;
+    roundEnded = true;
+    console.info(`[DD][Round] endRound:${reason}`);
+    RPC.call("nextRound", {}, RPC.Mode.ALL);
+  };
 
   onMount(() => {
+    // Host starts the round timer.
+    if (isHost()) {
+      const duration = (getState("timer-seconds") ?? DEFAULT_TIMER) * 1000;
+      setState("round-end-time", Date.now() + duration, true);
+    }
+
     const interval = setInterval(() => {
       let participants = Object.values(getParticipants());
       participants = participants.filter((player) =>
@@ -407,6 +453,15 @@ function Gameplay() {
       setArtists(participants);
     }, 250);
 
+    const timerInterval = setInterval(() => {
+      if (!isHost() || roundEnded) return;
+      const endTime = getState("round-end-time");
+      if (typeof endTime !== "number") return;
+      if (Date.now() >= endTime) {
+        endRound("timerExpired");
+      }
+    }, 250);
+
     const nextRoundClean = RPC.register("nextRound", async () => {
       console.info("[DD][Round] nextRound:rpcReceived");
       logRoundState("nextRound:beforeReset");
@@ -415,19 +470,17 @@ function Gameplay() {
     });
 
     const playerGuessedClean = RPC.register("playerGuessed", async () => {
-      let guesserCount = Object.values(getParticipants()).length - 2;
-      setNumPlayersGuessed((previousNum) => {
-        let newNum = previousNum + 1;
-        if (newNum >= guesserCount) {
-          console.info("[DD][Round] playerGuessed:allGuessed");
-          RPC.call("nextRound", {}, RPC.Mode.ALL);
-        }
-        return newNum;
-      });
+      const guesserCount = Object.values(getParticipants()).length - 2;
+      numPlayersGuessed += 1;
+      if (numPlayersGuessed >= guesserCount) {
+        console.info("[DD][Round] playerGuessed:allGuessed");
+        endRound("allGuessed");
+      }
     });
 
     onCleanup(() => {
       clearInterval(interval);
+      clearInterval(timerInterval);
       nextRoundClean();
       playerGuessedClean();
     });

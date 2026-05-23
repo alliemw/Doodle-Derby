@@ -148,7 +148,7 @@
   flex-direction: column;
   align-items: stretch;
   justify-content: start;
-  gap: 0px;
+  gap: 10px;
   min-width: 0;
   grid-column: 1;
 }

@@ -15,6 +15,7 @@ import { AudioManager } from "../components/AudioManager";
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 import { ChatGuesser } from "../../api/guess/GuessComponent";
 import { ReactionBar } from "../../api/reactions/ReactionBarComponent";
+import { TimerDisplay } from "./gameplay_page";
 import "../../style/spectator-page.css";
 
 interface SpectatorPageProps {
@@ -95,6 +96,7 @@ export function SpectatorPage(props: SpectatorPageProps) {
           <h1 class="round-header">
             Derby {(getState("roundsPlayed") ?? 0) + 1}
           </h1>
+          <TimerDisplay />
           <div
             style={{
               display: "flex",

@@ -129,6 +129,11 @@ function Lobby() {
       setState("number-rounds", 1);
     }
 
+    // If timer-seconds is undefined set it to the default!
+    if (!getState("timer-seconds")) {
+      setState("timer-seconds", DEFAULT_TIMER);
+    }
+
     const me = myPlayer();
     const initSequence = async () => {
       // Wait for connection and room code
@@ -299,14 +304,14 @@ function Lobby() {
                   return getState("number-rounds") ?? 1;
                 })()}
               </li>
-              {/* <li>
+              <li>
                 Time Limit:{" "}
                 {(() => {
                   lobbyTicket(); // Listen for changes
                   return getState("timer-seconds") ?? DEFAULT_TIMER;
                 })()}
                 s
-              </li> */}
+              </li>
             </ul>
           </aside>
 
