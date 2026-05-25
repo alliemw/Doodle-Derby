@@ -19,7 +19,7 @@ export const ChatGuesser = (props: {
   let [text, setText] = createSignal("");
   let [isDisabled, setIsDisabled] = createSignal(false);
   let [guessedWords, setGuessedWords] = createSignal<string[]>([]);
-  let [globalMessages, setGlobalMessages] = createSignal<{text: string, isCorrect: boolean}[]>([]);
+  let [globalMessages, setGlobalMessages] = createSignal<{ text: string, isCorrect: boolean }[]>([]);
   let [correctGuesses, setCorrectGuesses] = createSignal(0);
 
   const MAX_MESSAGES = 50;
@@ -121,6 +121,7 @@ export const ChatGuesser = (props: {
       console.log("Artist score: " + artist.getState("score"));
 
       if (correctGuesses() == 2) {
+        myPlayer().setState("finishedGuesses", true, true);
         submitMessage("guessed both words!", true);
         setIsDisabled(true);
         RPC.call("playerGuessed", {}, RPC.Mode.HOST);
@@ -148,7 +149,7 @@ export const ChatGuesser = (props: {
     );
   }
 
-  function submitMessage(currentMessage: string, isCorrect : boolean = false) {
+  function submitMessage(currentMessage: string, isCorrect: boolean = false) {
     setText("");
     if (currentMessage.trim().length == 0) return;
     const finalMessage = `${myPlayer().getState("name")}: ${currentMessage}`;
