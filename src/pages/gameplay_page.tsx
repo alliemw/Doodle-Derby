@@ -18,6 +18,8 @@ import {
   SpectatorCanvas,
 } from "../../api/draw/ArtistCanvasComponent";
 
+import { SpectatorPage } from "./spectator_page";
+
 import { ReactionBar } from "../../api/reactions/ReactionBarComponent";
 
 import "../../style/game.css";
@@ -26,6 +28,7 @@ import { routerNavigate } from "../../api/tiny_router";
 import { PlayerList } from "../components/PlayerList";
 import { MuteButton } from "../components/MuteButton";
 import { IconButton } from "../components/IconButton";
+import DerbyTransition from "../components/DerbyTransition"
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 
 export function TimerDisplay() {
@@ -122,6 +125,22 @@ function pickPrompts() {
   logRoundState("pickPrompts:promptChoicesAssigned");
 }
 
+function isGameOver() {
+  let participants = Object.values(getParticipants());
+  let currentArtistPool = participants.filter((player) => {
+    return !player.getState("hasChosen");
+  });
+
+  if (currentArtistPool.length == 0) {
+    let roundsPlayed = getState("roundsPlayed") + 1;
+    let maxRounds = getState("number-rounds");
+
+    return roundsPlayed >= maxRounds;
+  }
+
+  return false;
+}
+
 function pickRandomArtists() {
   let participants = Object.values(getParticipants());
   let currentArtistPool = participants.filter((player) => {
@@ -133,7 +152,6 @@ function pickRandomArtists() {
     let roundsPlayed = getState("roundsPlayed") + 1;
     let maxRounds = getState("number-rounds");
 
-    console.log("end state:", roundsPlayed, maxRounds);
     // Check if greater just in case,
     // but ideally it should never be greater
     if (roundsPlayed >= maxRounds) {
@@ -239,16 +257,7 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
       logRoundState("randomArtistsPicked:rpcReceived");
     });
 
-    const interval = setInterval(() => {
-      setIsArtist(me().getState("isArtist") ?? false);
-
-      if (artistsHavePrompts()) {
-        startGameplay("promptStatePolling:advanceToGameplay");
-      }
-    }, 250);
-
     onCleanup(() => {
-      clearInterval(interval);
       artistPickedPromptClean();
       startGameplayClean();
       pickedPromptClean();
@@ -419,11 +428,10 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
   );
 }
 
-import { SpectatorPage } from "./spectator_page";
-
 function Gameplay() {
   let [artists, setArtists] = createSignal<PlayerState[]>([]);
   let [isArtist, setIsArtist] = createSignal(false);
+  let [showTransition, setShowTransition] = createSignal(false);
   let numPlayersGuessed = 0;
   let roundEnded = false;
 
@@ -431,7 +439,16 @@ function Gameplay() {
     if (roundEnded) return;
     roundEnded = true;
     console.info(`[DD][Round] endRound:${reason}`);
-    RPC.call("nextRound", {}, RPC.Mode.ALL);
+
+    const TRANSITION_DELAY = 2000;
+    setState("round-end-time", 0, true);
+
+    if (isGameOver()) {
+      setTimeout(() => RPC.call("nextRound", {}, RPC.Mode.ALL), TRANSITION_DELAY);
+      return;
+    }
+
+    setTimeout(() => RPC.call("transitionPage", {}, RPC.Mode.ALL), TRANSITION_DELAY);
   };
 
   onMount(() => {
@@ -473,6 +490,12 @@ function Gameplay() {
       routerNavigate("/game");
     });
 
+    const transitionClean = RPC.register("transitionPage", async () => {
+      console.info("[DD][Round] transitionPage:rpcReceived");
+      logRoundState("nextRound:transitionPage");
+      setShowTransition(true);
+    });
+
     const playerGuessedClean = RPC.register("playerGuessed", async () => {
       const guesserCount = Object.values(getParticipants()).length - 2;
       numPlayersGuessed += 1;
@@ -486,17 +509,22 @@ function Gameplay() {
       clearInterval(interval);
       clearInterval(timerInterval);
       nextRoundClean();
+      transitionClean();
       playerGuessedClean();
     });
   });
 
   return (
     <>
-      <Show when={isArtist()}>
+      <Show when={showTransition()}>
+        <DerbyTransition />
+      </Show>
+
+      <Show when={isArtist() && !showTransition()}>
         <ArtistPage otherArtist={artists()[0]} />
       </Show>
 
-      <Show when={!isArtist()}>
+      <Show when={!isArtist() && !showTransition()}>
         <SpectatorPage artistList={artists()} />
       </Show>
     </>
@@ -535,6 +563,7 @@ function GameplayPageMain() {
         }
 
         player.setState("isArtist", false, true);
+        player.setState("finishedGuesses", false, true);
       });
 
       if (pickRandomArtists()) {
@@ -575,17 +604,11 @@ export function RandomWordSelection(props: {
 
   onMount(() => {
     const updateChoices = () => {
-      const nextChoices = me().getState("promptChoices") || [];
-      const current = choices();
-      if (
-        current.length !== nextChoices.length ||
-        current.some((word, i) => word !== nextChoices[i])
-      ) {
-        setChoices([...nextChoices]);
-      }
+      setChoices(me().getState("promptChoices") || []);
     };
 
     updateChoices();
+
     const interval = setInterval(updateChoices, 250);
     onCleanup(() => clearInterval(interval));
   });
