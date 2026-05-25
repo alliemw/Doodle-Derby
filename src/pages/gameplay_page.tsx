@@ -70,6 +70,7 @@ const logRoundState = (context: string) => {
     name: player.getState("name"),
     isArtist: player.getState("isArtist"),
     prompt: player.getState("prompt"),
+    promptChoices: player.getState("promptChoices"),
     hasChosen: player.getState("hasChosen"),
     score: player.getState("score"),
     rightGuesses: player.getState("rightGuesses"),
@@ -191,8 +192,11 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
 
   const artistsHavePrompts = () => {
     const artists = Object.values(getParticipants()).filter((player) =>
-      player.getState("isArtist"),
+      player.getState("isArtist") === true
     );
+    if (artists.length > 2) {
+      console.error("More than 2 artists selected:", artists);
+    }
     return (
       artists.length >= 2 &&
       artists.every((player) => {
