@@ -28,38 +28,10 @@ import { routerNavigate } from "../../api/tiny_router";
 import { PlayerList } from "../components/PlayerList";
 import { MuteButton } from "../components/MuteButton";
 import { IconButton } from "../components/IconButton";
+import { getTimerInterval, TimerDisplay } from "../components/TimerDisplay"
 import DerbyTransition from "../components/DerbyTransition"
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 
-export function TimerDisplay() {
-  const [secondsLeft, setSecondsLeft] = createSignal<number | null>(null);
-
-  onMount(() => {
-    const tick = () => {
-      const endTime = getState("round-end-time");
-      if (typeof endTime !== "number") {
-        setSecondsLeft(null);
-        return;
-      }
-      setSecondsLeft(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));
-    };
-
-    tick();
-    const id = setInterval(tick, 250);
-    onCleanup(() => clearInterval(id));
-  });
-
-  return (
-    <Show when={secondsLeft() !== null}>
-      <div
-        class="round-timer"
-        classList={{ "round-timer-warning": (secondsLeft() ?? 0) <= 10 }}
-      >
-        {secondsLeft()}s
-      </div>
-    </Show>
-  );
-}
 
 // Functions here are throwaways and only serve as substitutes
 const randInt = (length: number) => {
@@ -452,10 +424,9 @@ function Gameplay() {
   };
 
   onMount(() => {
-    // Host starts the round timer.
+
     if (isHost()) {
-      const duration = (getState("timer-seconds") ?? DEFAULT_TIMER) * 1000;
-      setState("round-end-time", Date.now() + duration, true);
+      setState("timer-seconds", getState("timer-seconds-settings") ?? DEFAULT_TIMER, true);
     }
 
     const interval = setInterval(() => {
@@ -474,14 +445,6 @@ function Gameplay() {
       setArtists(participants);
     }, 250);
 
-    const timerInterval = setInterval(() => {
-      if (!isHost() || roundEnded) return;
-      const endTime = getState("round-end-time");
-      if (typeof endTime !== "number") return;
-      if (Date.now() >= endTime) {
-        endRound("timerExpired");
-      }
-    }, 250);
 
     const nextRoundClean = RPC.register("nextRound", async () => {
       console.info("[DD][Round] nextRound:rpcReceived");
@@ -504,6 +467,8 @@ function Gameplay() {
         endRound("allGuessed");
       }
     });
+
+    const timerInterval = getTimerInterval(roundEnded, endRound);
 
     onCleanup(() => {
       clearInterval(interval);
