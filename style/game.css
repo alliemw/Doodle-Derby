@@ -447,6 +447,10 @@
   border: 2px solid #fff;
 }
 
+.player-list-card.finished {
+  background: rgba(144, 238, 144, 0.6);
+}
+
 .player-list-row .player-list-card {
   flex: 1 1 var(--player-card-width);
   min-width: var(--player-card-min-width);
