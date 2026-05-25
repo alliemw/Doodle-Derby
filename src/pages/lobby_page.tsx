@@ -129,6 +129,11 @@ function Lobby() {
       setState("number-rounds", 1);
     }
 
+    // If timer-seconds is undefined set it to the default!
+    if (!getState("timer-seconds")) {
+      setState("timer-seconds", DEFAULT_TIMER);
+    }
+
     const me = myPlayer();
     const initSequence = async () => {
       // Wait for connection and room code
@@ -228,7 +233,8 @@ function Lobby() {
       <div id="mainLobby-container" class="lobby-container">
         {/* Header */}
         <header class="lobby-header">
-          <IconButton
+          <div>
+            <IconButton
             id="exit-btn"
             defaultImg="/lobby/back_icon.png"
             hoverImg="/lobby/back_icon_highlighted.png"
@@ -238,6 +244,8 @@ function Lobby() {
               routerNavigate("/");
             }}
           />
+          </div>
+          
           <div
             style={{
               display: "flex",
@@ -245,7 +253,7 @@ function Lobby() {
               gap: "10px",
             }}
           >
-            <h1 style={{ margin: 0 }}>
+            <h1 style={{ margin: 0, "text-align":"end" }}>
               Code: <span id="code-span">{getRoomCode() ?? "Error"}</span>
             </h1>
             <div class="copy-button-container">
@@ -264,7 +272,7 @@ function Lobby() {
             </div>
           </div>
 
-          <div>
+          <div class="lobby-options-container">
             <MuteButton
               onClick={() => {
                 if (!AudioManager.isMuted())
@@ -272,7 +280,7 @@ function Lobby() {
               }}
             ></MuteButton>
             <IconButton
-              id="settings-btn"
+              id="icon-btn"
               defaultImg="/lobby/settings_icon.png"
               hoverImg="/lobby/settings_icon_highlighted.png"
               altText="Settings"
@@ -296,14 +304,14 @@ function Lobby() {
                   return getState("number-rounds") ?? 1;
                 })()}
               </li>
-              {/* <li>
+              <li>
                 Time Limit:{" "}
                 {(() => {
                   lobbyTicket(); // Listen for changes
                   return getState("timer-seconds") ?? DEFAULT_TIMER;
                 })()}
                 s
-              </li> */}
+              </li>
             </ul>
           </aside>
 

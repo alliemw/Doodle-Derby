@@ -19,7 +19,6 @@ import { CanvasButton } from "../../src/components/CanvasButton";
 import { PlayerAvatar } from "../../src/components/PlayerAvatar";
 import { ArtistBar } from "../../src/components/ArtistBar";
 
-
 const VIRTUAL_WIDTH = 600;
 const VIRTUAL_HEIGHT = 600;
 
@@ -77,10 +76,24 @@ function DrawCanvas(props: { prompt: string }) {
       }
     };
 
+    const measure = () => {
+      const rect = containerRef!.getBoundingClientRect();
+      // Fall back to virtual size if CSS hasn't laid out yet (rare).
+      const w = Math.max(1, Math.round(rect.width)) || VIRTUAL_WIDTH;
+      const h = Math.max(1, Math.round(rect.height)) || VIRTUAL_HEIGHT;
+      return { width: w, height: h };
+    };
+
+    const initial = measure();
+
+    // The Konva stage matches the displayed pixel size, but the backing
+    // canvas stays at the virtual size (VIRTUAL_WIDTH x VIRTUAL_HEIGHT) so
+    // strokes are drawn in virtual coordinates and never need to be
+    // rescaled when the window resizes — we only adjust the layer scale.
     stage = new konva.Stage({
       container: containerRef,
-      width: VIRTUAL_WIDTH,
-      height: VIRTUAL_HEIGHT,
+      width: initial.width,
+      height: initial.height,
     });
 
     canvas = stage.toCanvas();
@@ -94,6 +107,17 @@ function DrawCanvas(props: { prompt: string }) {
       { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
       { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
     );
+    pc.scale(initial.width / VIRTUAL_WIDTH);
+
+    const resizeObserver = new ResizeObserver(() => {
+      const next = measure();
+      if (next.width === stage.width() && next.height === stage.height()) {
+        return;
+      }
+      stage.size({ width: next.width, height: next.height });
+      pc.scale(next.width / VIRTUAL_WIDTH);
+    });
+    resizeObserver.observe(containerRef);
 
     pc.setNetworkCallbacks({
       onStrokeBegin: (payload: NetworkStrokePayload) => {
@@ -136,6 +160,7 @@ function DrawCanvas(props: { prompt: string }) {
 
     onCleanup(() => {
       window.removeEventListener("keydown", handleKeyDown);
+      resizeObserver.disconnect();
       stage.destroy();
     });
   });
@@ -152,7 +177,12 @@ function DrawCanvas(props: { prompt: string }) {
   return (
     <>
       <div class="draw-root-container">
-        <h2 class="draw-header">{props.prompt}</h2>
+        <div class="draw-header-container">
+          <h2 class="draw-header">{"DRAW:"}</h2>
+          <h2>&nbsp;</h2>
+          <h2 class="draw-header">{props.prompt}</h2>
+        </div>
+
         <div class="draw-workspace">
           <ArtistBar
             brush={brush}
@@ -161,52 +191,16 @@ function DrawCanvas(props: { prompt: string }) {
             setPaintMode={setPaintMode}
             paintCanvas={paintCanvas()}
           />
-          <div
-            class="canvas-wrapper"
-            style={{
-              position: "relative",
-              width: "700px",
-              height: "700px",
-              margin: "0 auto",
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "center",
-            }}
-          >
+          <div class="canvas-wrapper">
+            <img class="canvas-frame-outer" src="/drawing/canvas_frame.png" />
             <img
-              src="/drawing/canvas_frame.png"
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "700px",
-                height: "700px",
-                "z-index": 0,
-                "pointer-events": "none", // Ensures clicks go through to the canvas
-              }}
-            />
-            <img
+              class="canvas-frame-inner"
               src="/drawing/canvas_inner_frame.png"
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "660px",
-                height: "680px",
-                "z-index": 1,
-                "pointer-events": "none", // Ensures clicks go through to the canvas
-              }}
             />
             <div
               ref={containerRef}
               id="container"
               class="canvas-container"
-              style={{
-                position: "relative",
-                "z-index": 2,
-                "border-radius": "5px",
-              }}
             ></div>
           </div>
         </div>
@@ -217,7 +211,7 @@ function DrawCanvas(props: { prompt: string }) {
 
 export function SpectatorCanvas(props: {
   artist: PlayerState;
-  scale?: number;
+  size?: "small" | "default";
   isSecondArtist?: boolean;
   hiddenPrompt?: string;
 }) {
@@ -233,9 +227,12 @@ export function SpectatorCanvas(props: {
       return;
     }
 
-    const scale = props.scale || 1.0;
-    const displayWidth = VIRTUAL_WIDTH * scale;
-    const displayHeight = VIRTUAL_HEIGHT * scale;
+    const measure = () => {
+      const rect = containerRef!.getBoundingClientRect();
+      const w = Math.max(1, Math.round(rect.width)) || VIRTUAL_WIDTH;
+      const h = Math.max(1, Math.round(rect.height)) || VIRTUAL_HEIGHT;
+      return { width: w, height: h };
+    };
 
     const onStrokeBeginClean = RPC.register(
       "onStrokeBegin",
@@ -280,16 +277,16 @@ export function SpectatorCanvas(props: {
       paintCanvas.redo();
     });
 
+    const initial = measure();
+
+    // Same architecture as the artist: backing canvas locked to virtual
+    // size, stage matches display pixels, layer scaled to fit. Resizes
+    // are then just stage.size() + pc.scale().
     stage = new konva.Stage({
       container: containerRef,
-      width: displayWidth,
-      height: displayHeight,
+      width: initial.width,
+      height: initial.height,
     });
-
-    if (containerRef) {
-      containerRef.style.width = `${displayWidth}px`;
-      containerRef.style.height = `${displayHeight}px`;
-    }
 
     canvas = stage.toCanvas();
 
@@ -299,11 +296,23 @@ export function SpectatorCanvas(props: {
       stage,
       DEFAULT_BRUSH,
       true, // isSpectator
-      { width: displayWidth, height: displayHeight }, // baseSize
-      { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT }, // virtualSize
+      { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
+      { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
     );
+    paintCanvas.scale(initial.width / VIRTUAL_WIDTH);
+
+    const resizeObserver = new ResizeObserver(() => {
+      const next = measure();
+      if (next.width === stage.width() && next.height === stage.height()) {
+        return;
+      }
+      stage.size({ width: next.width, height: next.height });
+      paintCanvas.scale(next.width / VIRTUAL_WIDTH);
+    });
+    resizeObserver.observe(containerRef);
 
     onCleanup(() => {
+      resizeObserver.disconnect();
       stage.destroy();
       onStrokeBeginClean();
       onStrokeEndClean();
@@ -314,81 +323,33 @@ export function SpectatorCanvas(props: {
     });
   });
 
-  const scale = () => props.scale || 1.0;
-  const wrapperSize = () => 700 * scale();
-  const innerWidth = () => 660 * scale();
-  const innerHeight = () => 680 * scale();
+  const wrapperClass = () =>
+    props.size === "small"
+      ? "canvas-wrapper spectator-small"
+      : "canvas-wrapper spectator";
 
   return (
     <>
       <div class="draw-root-container">
         <div class="spectator-header-container">
-          <PlayerAvatar player={props.artist} ></PlayerAvatar>
-          <div
-            style={{
-              display: "flex",
-              "justify-content": "flex-end",
-              "align-items": "flex-end",
-              "gap": "40px",
-            }}
-          >
+          <PlayerAvatar player={props.artist}></PlayerAvatar>
+          <div>
             <div class="spectator-name-header">
               {props.artist.getState("name")}
             </div>
-            <h1 class="spectator-prompt-header">{props.hiddenPrompt}</h1>
+            <h1 class="spectator-prompt-header">
+              <pre>{props.hiddenPrompt}</pre>
+            </h1>
           </div>
         </div>
 
-        <div
-          class="canvas-wrapper"
-          style={{
-            position: "relative",
-            width: `${wrapperSize()}px`,
-            height: `${wrapperSize()}px`,
-            margin: "0 auto",
-            display: "flex",
-            "align-items": "center",
-            "justify-content": "center",
-          }}
-        >
-          {/* Outer Frame - Scaled */}
+        <div class={wrapperClass()}>
+          <img class="canvas-frame-outer" src="/drawing/canvas_frame.png" />
           <img
-            src="/drawing/canvas_frame.png"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: `${wrapperSize()}px`,
-              height: `${wrapperSize()}px`,
-              "z-index": 0,
-              "pointer-events": "none",
-            }}
-          />
-          {/* Inner Frame - Scaled */}
-          <img
+            class="canvas-frame-inner"
             src="/drawing/canvas_inner_frame.png"
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: `${innerWidth()}px`,
-              height: `${innerHeight()}px`,
-              "z-index": 1,
-              "pointer-events": "none",
-            }}
           />
-          {/* Canvas Container */}
-          <div
-            ref={containerRef}
-            id="container"
-            class="canvas-container"
-            style={{
-              position: "relative",
-              "z-index": 2,
-              "border-radius": "5px",
-            }}
-          ></div>
+          <div ref={containerRef} id="container" class="canvas-container"></div>
         </div>
       </div>
     </>

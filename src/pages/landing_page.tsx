@@ -3,7 +3,7 @@ import { Page } from "../../api/page";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { routerNavigate } from "../../api/tiny_router";
 import "../../style/landing-page.css";
-import { insertCoin, isHost, myPlayer } from "playroomkit";
+import { getState, insertCoin, isHost, myPlayer } from "playroomkit";
 import { AudioManager } from "../components/AudioManager";
 import { MuteButton } from "../components/MuteButton";
 
@@ -13,6 +13,8 @@ import {
   AlertModalProps,
   PromptModalState,
 } from "../../api/modals/ModalComponents";
+import { IconButton } from "../components/IconButton";
+import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 
 function LandingMain() {
   let logoClickCount = 0;
@@ -24,6 +26,7 @@ function LandingMain() {
   const [promptModal, setPromptModal] = createSignal<PromptModalState | null>(
     null,
   );
+  const [isSettingsOpen, setIsSettingsOpen] = createSignal(false);
 
   const spawnSheep = () => {
     const doodle = document.createElement("img");
@@ -108,14 +111,13 @@ function LandingMain() {
 
   const handleCredits = () => {
     showAlert(
-      
-"Credits!!",
+      "Credits!!",
       "Producer – Allie Atkinson\n" +
-      "Programmers – Seven Flaminiano, Max Fisch, Zidane Ho, Neel Dharm, Adrian Guzman, Isha Pandit, Gloria Lee, Michelle Mitchell, Jack Park, Zhiheng Zhou\n" +
-      "Artists – Marissa Morales, Jay Siqueiroz, Bella Lau, Allie Atkinson\n" +
-      "Audio – Jay Siqueiroz, Jason Montanez\n" +
-      "Design – Emily Le, Zidane Ho\n",
-      "group_photo.png"
+        "Programmers – Seven Flaminiano, Max Fisch, Zidane Ho, Neel Dharm, Adrian Guzman, Isha Pandit, Gloria Lee, Michelle Mitchell, Jack Park, Zhiheng Zhou\n" +
+        "Artists – Marissa Morales, Jay Siqueiroz, Bella Lau, Allie Atkinson\n" +
+        "Audio – Jay Siqueiroz, Jason Montanez\n" +
+        "Design – Emily Le, Zidane Ho\n",
+      "group_photo.png",
     );
   };
 
@@ -123,22 +125,37 @@ function LandingMain() {
     showAlert(
       "How to Play",
       "Start by creating a lobby and inviting at least two friends!" +
-      " The game will begin by everyone writing word prompts that are drawable." +
-       " They can be simple, like “apple pie,” or more personal to your friend group, like “Allie’s cat.”" +
-       " After everybody has submitted words, the drawing will begin! If you are an artist, draw your prompt" +
-       " accurately and quickly to win the round. If you are in the audience, try to guess both artists’ prompts" +
-       " (they’re different!). Faster guesses = more points. " +
-       "At the end of the game, a winner will be declared. Let’s doodle!"
+        " The game will begin by everyone writing word prompts that are drawable." +
+        " They can be simple, like “apple pie,” or more personal to your friend group, like “Allie’s cat.”" +
+        " After everybody has submitted words, the drawing will begin! If you are an artist, draw your prompt" +
+        " accurately and quickly to win the round. If you are in the audience, try to guess both artists’ prompts" +
+        " (they’re different!). Faster guesses = more points. " +
+        "At the end of the game, a winner will be declared. Let’s doodle!",
     );
   };
   return (
     <div class="landing-page-body">
+      <Show when={isSettingsOpen()}>
+        <SettingsModal
+          timerSeconds={0}
+          onClose={() => setIsSettingsOpen(false)}
+          hideGameSettings={true}
+          hideControls={true}
+        />
+      </Show>
       <div style={{ position: "absolute", top: "10px", right: "10px" }}>
         <MuteButton
           onClick={() => {
             if (!AudioManager.isMuted())
               AudioManager.playLoop("/audio/DDsong.mp3");
           }}
+        />
+        <IconButton
+          id="icon-btn"
+          defaultImg="/lobby/settings_icon.png"
+          hoverImg="/lobby/settings_icon_highlighted.png"
+          altText="Settings"
+          onClick={() => setIsSettingsOpen(true)}
         />
       </div>
       {/* Main Logo Section */}

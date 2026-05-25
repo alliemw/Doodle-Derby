@@ -1,0 +1,247 @@
+.audience-page {
+  --spectator-page-padding: clamp(10px, 2vw, 20px);
+  --spectator-canvas-gap: clamp(12px, 2vw, 24px);
+  --spectator-canvas-size: min(
+    46vh,
+    calc((100vw - var(--spectator-page-padding) - var(--spectator-page-padding) - var(--spectator-canvas-gap)) / 2),
+    490px
+  );
+
+  display: grid;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr auto auto 1fr;
+  row-gap: clamp(16px, 2.5vh, 28px);
+  column-gap: var(--spectator-canvas-gap);
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: var(--spectator-page-padding);
+}
+
+.audience-page .draw-root-container {
+  --canvas-size: var(--spectator-canvas-size);
+
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: var(--spectator-canvas-size);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.audience-page .canvas-wrapper.spectator {
+  --canvas-size: var(--spectator-canvas-size);
+}
+
+.audience-page .spectator-header-container {
+  width: var(--spectator-canvas-size);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  overflow: hidden;
+}
+
+.audience-page .spectator-header-container > .player-avatar {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.audience-page .spectator-header-container > div:not(.player-avatar) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.audience-page .spectator-name-header {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audience-page .spectator-prompt-header {
+  min-width: 0;
+  max-width: 100%;
+  font-size: clamp(14px, 2vw, 18px);
+}
+
+.audience-page .spectator-prompt-header pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.audience-canvas-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--spectator-canvas-size);
+  min-width: 0;
+}
+.audience-canvas-container0 {
+  grid-column: 2;
+}
+.audience-canvas-container1 {
+  grid-column: 3;
+}
+
+.audience-chat-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  justify-content: flex-start;
+  gap: clamp(8px, 1.5vh, 16px);
+  width: clamp(120px, 15vw, 320px);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  grid-column: 4;
+}
+
+.audience-chat-container .guess-container {
+  width: 100%;
+  min-width: 0;
+}
+
+.audience-chat-container .chat-container {
+  width: 100%;
+  height: clamp(220px, 50vh, 420px);
+  min-height: 0;
+  margin: 0;
+}
+
+.audience-chat-container .chat-input-row {
+  width: 100%;
+  margin: clamp(6px, 1vh, 12px) 0 0;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.audience-chat-container .chat-input-textbox {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.audience-chat-container .reac-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  justify-content: center;
+  gap: 6px;
+}
+
+.audience-chat-container .reac-img {
+  width: clamp(30px, 3vw, 44px);
+}
+
+.spectator-header {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: start;
+  gap: 10px;
+  min-width: 0;
+  grid-column: 1;
+}
+
+.spectator-header > .round-header {
+  align-self: flex-start;
+}
+
+.audience-players-container {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+}
+
+.audience-players-container .player-list {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+}
+  
+
+@media (max-height: 1200px) {
+  .audience-page {
+    --spectator-canvas-size: min(
+      50vh,
+      calc((100vw - var(--spectator-page-padding) - var(--spectator-page-padding) - var(--spectator-canvas-gap)) / 2),
+      430px
+    );
+  }
+
+  .audience-chat-container .chat-container {
+    height: clamp(180px, 42vh, 320px);
+  }
+}
+
+@media (max-width: 1200px) {
+  .audience-page {
+    --spectator-chat-width: clamp(140px, 18vw, 280px);
+    grid-template-columns: auto auto var(--spectator-chat-width);
+    --spectator-canvas-size: min(
+      46vh,
+      calc((100vw - 2 * var(--spectator-page-padding) - 3 * var(--spectator-canvas-gap) - var(--spectator-chat-width)) / 2),
+      430px
+    );
+  }
+
+  .spectator-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .spectator-header > .round-header {
+    flex: 0 0 auto;
+    align-self: center;
+  }
+
+  .audience-players-container {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .audience-canvas-container0 {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .audience-canvas-container1 {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .audience-chat-container {
+    grid-column: 3;
+    grid-row: 2;
+    width: 100%;
+    max-width: var(--spectator-chat-width);
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .audience-page {
+    --spectator-canvas-gap: 8px;
+  }
+
+  .audience-chat-container {
+    width: min(100%, 320px);
+  }
+}

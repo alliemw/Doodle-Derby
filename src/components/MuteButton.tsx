@@ -17,7 +17,7 @@ export function MuteButton(props :MuteButtonProps) {
 
   return (
     <button
-      class="icon-btn"
+      class="icon-btn mute-btn"
       onClick={() => {
         toggleMute();
         props.onClick();
@@ -26,6 +26,7 @@ export function MuteButton(props :MuteButtonProps) {
       onMouseLeave={() => setIsHovered(false)}
     >
       <img
+        class="icon-btn__img"
         src={
           isMuted()
             ? isHovered()
@@ -35,7 +36,7 @@ export function MuteButton(props :MuteButtonProps) {
               ? unmutedHiglightedSrc
               : unmutedSrc
         }
-        width="80px"
+        alt={isMuted() ? "Unmute" : "Mute"}
       />
     </button>
   );

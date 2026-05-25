@@ -55,13 +55,12 @@ function PlayerCard({
 function Podium(props: {
   src: string;
   player: PlayerState;
-  width: number;
   playerScale: Accessor<number>;
 }) {
   console.log("Rerendered");
   return (
     <Show when={props.player != null && props.src != null}>
-      <div class="podium" style={{ width: `${props.width}px` }}>
+      <div class="podium">
         <PlayerCard player={props.player} playerScale={props.playerScale} />
         <img src={props.src}></img>
       </div>
@@ -200,19 +199,16 @@ function PodiumPageMain() {
             src={secondImage() as string}
             player={secondPlace() as PlayerState}
             playerScale={secondPlaceScale}
-            width={415}
           />
           <Podium
             src={firstImage() as string}
             player={firstPlace() as PlayerState}
             playerScale={firstPlaceScale}
-            width={500}
           />
           <Podium
             src={thirdImage() as string}
             player={thirdPlace() as PlayerState}
             playerScale={thirdPlaceScale}
-            width={415}
           />
         </div>
       </div>

@@ -29,14 +29,18 @@
 }
 
 .sidebar {
-  position: flex;
-  flex-direction: column;
-  min-width: 40px;
-  left: 5%;
-  background: none;
-  padding: 5px;
   display: grid;
   gap: 10px;
+  min-width: 40px;
+  background: none;
+  padding: 5px;
+  box-sizing: border-box;
+  /* Stay roughly the same height as the canvas. Scrolls inside when the
+     viewport is too narrow for all the controls to fit at once. */
+  max-height: var(--canvas-size, 100%);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
 }
 
 .sidebar button {
@@ -48,8 +52,16 @@
   border: 1px solid #111111;
 }
 
-/* Container wrapping the entire draw area (Header + Workspace) */
+/* Container wrapping the entire draw area (Header + Workspace).
+   Declares --canvas-size so siblings (.sidebar, .canvas-wrapper) inherit
+   the same canonical size. The derived variables live on .canvas-wrapper
+   itself so they recompute when spectator variants override --canvas-size
+   — CSS custom properties resolve var() at the element where the property
+   is declared, so a derived var on this ancestor would be frozen with the
+   artist's --canvas-size and ignore the spectator override. */
 .draw-root-container {
+  --canvas-size: min(90vmin, calc(100vw - 140px), 700px);
+
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -68,10 +80,52 @@
 .round-header {
   display: flex;
   justify-content: center;
-  padding: 10px 20px;
+  padding: 5px 20px;
   background-color: #e6e6e6;
   border: black 2px solid;
-  border-radius: 24px;
+  border-radius: 12px;
+  margin:0;
+}
+
+.round-timer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  min-width: 75px;
+  max-width: 100%;
+  padding: 5px 16px;
+  background-color: #fff3a0;
+  border: black 2px solid;
+  border-radius: 12px;
+  font-family: "ComicSansMS", "Comic Sans", cursive;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  flex: 0 0 auto;
+}
+
+.spectator-header > .round-timer {
+  align-self: flex-start;
+}
+
+/* Spectator header switches to row layout at this breakpoint
+   (see spectator-page.css). Center the timer along the row's cross axis. */
+@media (max-width: 1200px) {
+  .spectator-header > .round-timer {
+    align-self: center;
+  }
+}
+
+.round-timer-warning {
+  background-color: #ffb3b3;
+  color: #b30000;
+  animation: round-timer-pulse 1s ease-out infinite;
+}
+
+@keyframes round-timer-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
 /* The prompt header text */
@@ -84,56 +138,497 @@
 
   padding: 0px 0px;
 }
-.draw-header {
+.draw-header-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
   width: 100%;
+  height:25px;
+}
+.draw-header {
   text-align: center;
-  justify-content: end;
-  translate: 5% 0px;
 }
 
-/* The workspace container (Sidebar + Canvas) */
+/* The workspace container (Sidebar + Canvas).
+   Never wraps internally — the artist's toolbar and canvas must always
+   render together. The canvas shrinks via --canvas-size (see below) to
+   keep both visible side-by-side on narrow viewports. */
 .draw-workspace {
   display: flex;
   flex-direction: row;
   gap: 20px;
   align-items: flex-start;
+  justify-content: center;
 }
 
-/* The actual Konva canvas container */
+/* Responsive canvas wrapper.
+   --canvas-size       = outer frame (matches old 700px reference)
+   --canvas-draw-size  = drawable area (matches old 600px reference, ratio 6/7)
+   The Konva stage is sized from --canvas-draw-size via JS; everything
+   else (frame chrome, wrapper) derives from --canvas-size. */
+.canvas-wrapper {
+  /* Derived sizes live here so they recompute against this element's own
+     --canvas-size (potentially overridden by .spectator / .spectator-small
+     below). Putting these on an ancestor would freeze them with the
+     ancestor's --canvas-size. */
+  --canvas-draw-size: calc(var(--canvas-size) * 6 / 7);
+  --canvas-frame-outer: var(--canvas-size);
+  --canvas-frame-inner-w: calc(var(--canvas-size) * 66 / 70);
+  --canvas-frame-inner-h: calc(var(--canvas-size) * 68 / 70);
+
+  position: relative;
+  width: var(--canvas-size);
+  height: var(--canvas-size);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.canvas-wrapper.spectator {
+  --canvas-size: min(60vmin, 490px);
+}
+.canvas-wrapper.spectator-small {
+  --canvas-size: min(35vmin, 280px);
+}
+
+/* Decorative paper-frame layered behind the drawable area. */
+.canvas-frame-outer,
+.canvas-frame-inner {
+  position: absolute;
+  pointer-events: none;
+}
+.canvas-frame-outer {
+  top: 0;
+  left: 0;
+  width: var(--canvas-frame-outer);
+  height: var(--canvas-frame-outer);
+  z-index: 0;
+}
+.canvas-frame-inner {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--canvas-frame-inner-w);
+  height: var(--canvas-frame-inner-h);
+  z-index: 1;
+}
+
+/* The actual Konva canvas container. CSS sets the layout size; JS reads
+   that size and resizes the Konva stage to match. */
 .canvas-container {
-  width: 600px;
-  height: 600px;
+  position: relative;
+  z-index: 2;
+  width: var(--canvas-draw-size);
+  height: var(--canvas-draw-size);
   border-radius: 5px;
 }
 
+/* Artist page layout. Flexbox keeps the canvas and side panel shrinkable
+   and lets the full page scroll when short viewports cannot fit everything. */
 .artist-container {
   display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
-  padding: 50px 70px;
-  gap: 20px;
-  justify-content: center;
+  max-width: 100vw;
+  padding: clamp(10px, 2.5vw, 28px);
+  gap: 16px;
+  align-items: stretch;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+.artist-topbar {
+  display: flex;
   align-items: center;
+  justify-content: start;
+  gap: clamp(12px, 3vw, 28px);
+  flex: 0 0 auto;
 }
 
-.second-artist-canvas-container {
-  width: 250px;
-  height: 250px;
-  border: 100px solid #000000;
+.artist-round-header {
+  margin: 0;
 }
 
-.game-info-container {
+.artist-main-area {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(10px, 1.5vw, 18px);
+  width: 100%;
+  min-width: 0;
+}
+
+.artist-canvas-area {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.artist-canvas-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.artist-canvas-area .draw-root-container {
+  --canvas-size: clamp(300px, min(76vh, calc(100vw - 560px)), 700px);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.artist-canvas-area .draw-header {
+  translate: 0 0;
+  max-width: 100%;
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.artist-side-panel {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 500px;
+  min-height: 0;
+}
+
+.artist-side-middle {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.artist-other-area {
+  --artist-other-canvas-size: clamp(80px, 22vmin, 240px);
+
+  display: flex;
+  justify-content: center;
+  flex: 0 0 var(--artist-other-canvas-size);
+  width: var(--artist-other-canvas-size);
+  min-width: 0;
+}
+
+.artist-side-panel .artist-other-area {
+  --artist-other-canvas-size: clamp(80px, 45cqi, 240px);
+}
+
+.artist-other-area .draw-root-container {
+  --canvas-size: var(--artist-other-canvas-size);
+  width: var(--canvas-size);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.artist-other-area .canvas-wrapper.spectator-small {
+  --canvas-size: var(--artist-other-canvas-size);
+}
+
+.artist-other-area .spectator-header-container {
+  width: var(--artist-other-canvas-size);
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.artist-chat-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.artist-chat-area-chat {
+  width: 100%;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.artist-chat-area .guess-container {
+  width: 100%;
+  min-width: 0;
+}
+
+.artist-chat-area .chat-container {
+  width: 100%;
+  margin: 0;
+}
+
+.artist-chat-area-emotes {
+  /* Shrinkable so the .reac-container inside (which already has
+     flex-wrap: wrap) can wrap its buttons onto multiple rows instead of
+     pushing the chatbox off the row. */
+  width: fit-content;
+  max-width: 100%;
+  align-self: center;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.artist-players-area {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+}
+
+
+/* Player list — compact under flex pressure via container queries. */
+.player-list {
+  --player-card-width: 220px;
+  --player-card-min-width: 120px;
+  --player-card-gap: 12px;
+  --player-card-padding: 8px;
+  --player-avatar-size: 80px;
+  --player-name-size: 1.1rem;
+  --player-score-size: 0.9rem;
+
+  container-type: inline-size;
+  display: flex;
+  gap: 6px;
+  padding: 16px;
+  background: #b3d1ff;
+  border-radius: 16px;
+  border: black 2px solid;
+  max-height: 600px;
+  scrollbar-width: thin;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.player-list-row {
+  flex-direction: row;
+  width: min(100%, 1000px);
+  max-width: 1000px;
+  min-height: 96px;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.player-list-column {
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.player-list-card {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  gap: var(--player-card-gap);
+  padding: var(--player-card-padding);
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  align-self: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.player-list-card.is-me {
+  background: rgba(255, 255, 255, 0.87);
+  border: 2px solid #fff;
+}
+
+.player-list-row .player-list-card {
+  flex: 1 1 var(--player-card-width);
+  min-width: var(--player-card-min-width);
+  min-height: 96px;
+}
+
+.player-list-column .player-list-card {
+  width: 100%;
+  flex-shrink: 1;
+}
+
+.player-list-card-info {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 100%;
-  width: 280px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
+.player-list-card-name {
+  font-weight: bold;
+  color: #53524d;
+  font-size: var(--player-name-size);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-list-card-score {
+  color: #53524d;
+  font-size: var(--player-score-size);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* As the player list's own inline size shrinks (because the flex parent
+   squeezes it), step down avatar size, card width, gap, and font sizes
+   so more cards stay visible without horizontal scrolling. */
+@container (max-width: 720px) {
+  .player-list {
+    --player-card-width: 180px;
+    --player-card-min-width: 110px;
+    --player-avatar-size: 64px;
+    --player-card-gap: 10px;
+    --player-name-size: 1rem;
+    --player-score-size: 0.85rem;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 80px;
+  }
+}
+
+@container (max-width: 520px) {
+  .player-list {
+    --player-card-width: 150px;
+    --player-card-min-width: 96px;
+    --player-avatar-size: 52px;
+    --player-card-gap: 8px;
+    --player-card-padding: 6px;
+    --player-name-size: 0.95rem;
+    --player-score-size: 0.8rem;
+    padding: 10px;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 68px;
+  }
+}
+
+@container (max-width: 360px) {
+  .player-list {
+    --player-card-width: 120px;
+    --player-card-min-width: 80px;
+    --player-avatar-size: 42px;
+    --player-card-gap: 6px;
+    --player-card-padding: 4px;
+    --player-name-size: 0.85rem;
+    --player-score-size: 0.75rem;
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 56px;
+  }
+}
+
+@container (max-width: 240px) {
+  .player-list {
+    --player-card-width: 90px;
+    --player-card-min-width: 60px;
+    --player-avatar-size: 32px;
+    --player-card-gap: 4px;
+    --player-card-padding: 3px;
+    --player-name-size: 0.75rem;
+    --player-score-size: 0.65rem;
+    padding: 6px;
+    gap: 3px;
+  }
+
+  .player-list-row .player-list-card {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 900px) {
+  .artist-canvas-area .draw-root-container {
+    --canvas-size: clamp(180px, min(60vh, calc(100vw - 300px)), 620px);
+  }
+
+  /* Narrow layout: main-area holds canvas + other-canvas only.
+     Header, chat, emotes, and player list become siblings below. */
+  .artist-main-area {
+    align-items: flex-start;
+  }
+
+  .artist-topbar-bottom {
+    width: 100%;
+    flex: 0 0 auto;
+    align-self: stretch;
+    justify-content: space-between;
+  }
+
+  .artist-chat-area-bottom {
+    width: 100%;
+    flex: 0 0 auto;
+    align-self: stretch;
+    flex-direction: column;
+  }
+
+  .artist-chat-area-bottom .chat-container {
+    height: clamp(120px, 22vh, 200px);
+  }
+}
+
+@media (max-width: 560px) {
+  .artist-other-area {
+    flex: 0 0 auto;
+  }
+
+  .artist-chat-area {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .artist-chat-area .chat-container {
+    height: clamp(90px, 18vh, 130px);
+  }
+
+  .artist-chat-area .chat-input-row {
+    margin: 6px 0 0;
+  }
+
+  .artist-chat-area .chat-input-textbox {
+    min-width: 0;
+    padding: 8px;
+  }
+
+  .artist-chat-area .icon-btn {
+    --btn-width: 64px;
+    --btn-height: 34px;
+  }
+
+  .artist-chat-area .reac-container {
+    gap: 4px;
+  }
+
+  .artist-chat-area .reac-img {
+    width: clamp(28px, 8vw, 42px);
+  }
+
+}
+
+
+
 .chat-container {
-  height: 300px;
-  max-height: 400px;
-  margin: 10px;
+  width: 100%;
+  height: clamp(120px, 20vh, 200px);
+  max-height: 50vh;
+  margin: 10px 0;
   border: 2px solid black;
   border-radius: 24px;
   background-color: #fff3a0;
@@ -155,6 +650,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+.spectator-info-container .chat-container {
+  height: clamp(180px, 35vh, 320px);
 }
 
 /* This allows the message area to grow and scroll internally */
@@ -163,7 +663,7 @@
   overflow-y: auto; /* Scroll messages, but hide the main container overflow */
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
-  padding: 5px 35px;
+  padding: 5px clamp(12px, 4vw, 35px);
 }
 .chat-messages-area::-webkit-scrollbar {
   display: none;
@@ -174,7 +674,7 @@
   display: flex;
   gap: 5px;
   align-items: center;
-  margin: 20px 40px;
+  margin: clamp(8px, 2vh, 20px) clamp(12px, 4vw, 40px);
 }
 
 .chat-input-textbox {
@@ -199,19 +699,55 @@
   flex-direction: column;
 }
 
+/* Side-by-side spectator canvases. Wrap when the row gets too wide. */
+.spectator-canvases-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+}
+
 .spectator-page-container {
   display: flex;
-  padding: 20px 50px;
+  flex-wrap: nowrap;
+  padding: clamp(8px, 2vw, 20px) clamp(12px, 4vw, 50px);
   gap: 1rem;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  align-content: flex-start;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+.spectator-canvases-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .spectator-info-container {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 0 1 360px;
+  min-width: 260px;
+  max-width: 520px;
+}
+
+/* On narrow screens (e.g. portrait phones), allow the chat to wrap below
+   the canvases so neither column gets squashed too small to use. */
+@media (max-width: 700px) {
+  .spectator-page-container {
+    flex-wrap: wrap;
+  }
+  .spectator-info-container {
+    flex: 1 1 320px;
+  }
 }
 .guess-container {
   display: flex;

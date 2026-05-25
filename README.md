@@ -1,6 +1,7 @@
 # Welcome to Doodle Derby!
 
 To play, visit [www.doodlederby.com](https://www.doodlederby.com)!
+Please Note: Doodle Derby is currently only **compatible on a computer/laptop.** Playing on a phone or tablet is known to cause issues with gameplay.
 
 ## How to Play
 

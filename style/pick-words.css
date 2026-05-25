@@ -218,9 +218,14 @@
 }
 .players-progress-list {
   display: flex;
-  flex-direction: row;
+  gap: 40px 20px; /* Vertical and horizontal spacing */
+  margin: 0 auto;
   flex-wrap: wrap;
-  gap: 5px;
+  justify-content: center;
+  max-height: 400px;
+  overflow-x: hidden;
+  overflow-y:auto;
+  align-content: flex-start;
 }
 
 .waiting-screen h1 {

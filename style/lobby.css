@@ -79,6 +79,7 @@ body {
   display: flex;
   justify-content: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* END REACTIONS */
@@ -119,14 +120,14 @@ body {
 }
 
 .icon-btn {
-  display: inline-grid;
+  display: grid;
   place-items: center;
   padding: 0;
   border: none;
   background: none;
   cursor: pointer;
   /* Use CSS variables for dynamic sizing */
-  width: var(--btn-width, 100px);
+  width: var(--btn-width, 80px);
   height: var(--btn-height, 80px);
   outline: none;
 }
@@ -143,6 +144,17 @@ body {
   transition: transform 0.1s ease-in-out;
 }
 
+.mute-btn {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mute-btn .icon-btn__img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+}
+
 .icon-btn:hover .icon-btn__img {
   transform: scale(1.05);
 }
@@ -152,6 +164,11 @@ body {
 .icon-btn:active .icon-btn__img,
 .icon-btn:active .icon-btn__text {
   transform: scale(0.95);
+}
+
+.icon-btn.mute-btn:hover .icon-btn__img,
+.icon-btn.mute-btn:active .icon-btn__img {
+  transform: none;
 }
 .icon-btn__text {
   pointer-events: none;
@@ -180,7 +197,7 @@ body {
 /* Rules Note */
 .rules-note {
   position: absolute;
-  top: 50px; /* Increased from 40px to move it below the header buttons */
+  top: 10px; /* Increased from 40px to move it below the header buttons */
   right: 40px; /* Slightly adjusted for better alignment */
   background-color: var(--sticky-pink);
   padding: 15px;
@@ -189,6 +206,9 @@ body {
   transform: rotate(1deg);
   z-index: 5; /* Ensures it stays above the lines but below any popups */
   opacity: 0;
+}
+.lobby-options-container {
+  display: flex;
 }
 
 @media screen and (min-width: 800px) {
@@ -208,13 +228,18 @@ body {
 
 /* Player Layout */
 .player-grid {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(100px, 150px));
+  display: flex;
   gap: 40px 20px; /* Vertical and horizontal spacing */
   margin: 0 auto;
+  flex-wrap: wrap;
   justify-content: center;
-  align-content: center;
-  width: auto; /* Let it shrink-wrap its contents */
+  max-height: 385px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: flex-start;
+  /* Top padding fits the host crown (top:-75px); sides fit the 150px-wide crown
+     on a 100px slot; small bottom keeps kick-btn (-5px) visible. */
+  padding: 85px 30px 15px 30px;
 }
 
 .plus-icon {
@@ -243,16 +268,13 @@ body {
   transition: border-color 0.2s ease;
 }
 
-.player-button:hover {
-  border-color: var(--sticky-purple);
-}
+
 .player-button:focus {
   outline: none;
 }
 
 .stick-man:hover {
   /* Visuals appear on hover by changing the border color */
-  border-color: var(--sticky-purple);
   transform: scale(1.05);
 }
 
@@ -365,6 +387,7 @@ body {
   background-color: var(--btn-green);
   border: none;
   padding: 10px 30px;
+  width: 175px;
   font-size: 20px;
   font-family: inherit;
   cursor: pointer;

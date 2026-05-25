@@ -18,7 +18,7 @@ export const ChatGuesser = (props: {
   let chatAreaRef: HTMLDivElement | undefined;
   let [text, setText] = createSignal("");
   let [isDisabled, setIsDisabled] = createSignal(false);
-  let [prompts, setPrompts] = createSignal<string[]>(props.promptList);
+  let [guessedWords, setGuessedWords] = createSignal<string[]>([]);
   let [globalMessages, setGlobalMessages] = createSignal<{text: string, isCorrect: boolean}[]>([]);
   let [correctGuesses, setCorrectGuesses] = createSignal(0);
 
@@ -46,8 +46,6 @@ export const ChatGuesser = (props: {
       });
     });
 
-    setPrompts(props.promptList);
-
     onCleanup(() => {
       newChatClean();
     });
@@ -70,19 +68,16 @@ export const ChatGuesser = (props: {
     setCorrectGuesses((previousGuess) => previousGuess + 1);
   };
 
-  const removePrompt = (word: string) => {
-    let newPrompts = prompts();
-    newPrompts.splice(newPrompts.indexOf(word), 1);
-    setPrompts(newPrompts);
-  };
-
   const guessChecker = () => {
-    if (prompts().find((word) => word === text().toLowerCase())) {
-      removePrompt(text().toLowerCase());
+    const guessWord = text().trim().toLowerCase();
+    if (!guessWord) return;
+
+    if (props.promptList.includes(guessWord) && !guessedWords().includes(guessWord)) {
+      setGuessedWords(words => [...words, guessWord]);
       incrementGuess();
 
       let artist = props.artists.find((player) => {
-        return player.getState("prompt") === text().toLowerCase();
+        return player.getState("prompt") === guessWord;
       });
 
       if (!artist) {
@@ -133,7 +128,7 @@ export const ChatGuesser = (props: {
       }
       submitMessage("guessed a word!", true);
     } else {
-      submitMessage(text(), false);
+      submitMessage(guessWord, false);
     }
 
     if (correctGuesses() >= 2) {

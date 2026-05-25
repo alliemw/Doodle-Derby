@@ -1,7 +1,7 @@
 import { Page } from "../../api/page";
 import { render, For } from "solid-js/web";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
-import { ChatGuesser, GuessElement } from "../../api/guess/GuessComponent";
+import { ChatGuesser } from "../../api/guess/GuessComponent";
 
 import {
   getParticipants,
@@ -25,6 +25,38 @@ import { AudioManager } from "../components/AudioManager";
 import { routerNavigate } from "../../api/tiny_router";
 import { PlayerList } from "../components/PlayerList";
 import { MuteButton } from "../components/MuteButton";
+import { IconButton } from "../components/IconButton";
+import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
+
+export function TimerDisplay() {
+  const [secondsLeft, setSecondsLeft] = createSignal<number | null>(null);
+
+  onMount(() => {
+    const tick = () => {
+      const endTime = getState("round-end-time");
+      if (typeof endTime !== "number") {
+        setSecondsLeft(null);
+        return;
+      }
+      setSecondsLeft(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));
+    };
+
+    tick();
+    const id = setInterval(tick, 250);
+    onCleanup(() => clearInterval(id));
+  });
+
+  return (
+    <Show when={secondsLeft() !== null}>
+      <div
+        class="round-timer"
+        classList={{ "round-timer-warning": (secondsLeft() ?? 0) <= 10 }}
+      >
+        {secondsLeft()}s
+      </div>
+    </Show>
+  );
+}
 
 // Functions here are throwaways and only serve as substitutes
 const randInt = (length: number) => {
@@ -148,20 +180,53 @@ function pickRandomArtists() {
 
 function SelectPrompts(props: { onPromptsPicked: () => void }) {
   let [isArtist, setIsArtist] = createSignal(false);
-  let [numPromptsPicked, setNumPromptsPicked] = createSignal(0);
   let hasStarted = false;
 
+  const startGameplay = (context: string) => {
+    if (hasStarted) return;
+    hasStarted = true;
+    logRoundState(context);
+    props.onPromptsPicked();
+  };
+
+  const artistsHavePrompts = () => {
+    const artists = Object.values(getParticipants()).filter((player) =>
+      player.getState("isArtist"),
+    );
+    return (
+      artists.length >= 2 &&
+      artists.every((player) => {
+        const prompt = player.getState("prompt");
+        return !!prompt && String(prompt).length > 0;
+      })
+    );
+  };
+
   onMount(() => {
-    console.info("[DD][Round] SelectPrompts:onMount", numPromptsPicked());
-    const pickedPromptClean = RPC.register("pickedPrompt", async () => {
-      console.info("[DD][Round] pickedPrompt:rpcReceived");
-      setNumPromptsPicked((n) => n + 1);
-      if (numPromptsPicked() >= 2) {
-        if (!hasStarted) {
-          hasStarted = true;
-          logRoundState("pickedPrompt:advanceToGameplay");
-          props.onPromptsPicked();
+    const artistPickedPromptClean = RPC.register(
+      "artistPickedPrompt",
+      async (payload: { prompt?: string }, player) => {
+        if (!isHost()) return;
+
+        const prompt = payload.prompt?.trim().toLowerCase();
+        if (!prompt || !player.getState("isArtist")) return;
+
+        player.setState("prompt", prompt, true);
+
+        if (artistsHavePrompts()) {
+          logRoundState("artistPickedPrompt:broadcastStartGameplay");
+          RPC.call("startGameplay", {}, RPC.Mode.ALL);
         }
+      },
+    );
+
+    const startGameplayClean = RPC.register("startGameplay", async () => {
+      startGameplay("startGameplay:rpcReceived");
+    });
+
+    const pickedPromptClean = RPC.register("pickedPrompt", async () => {
+      if (artistsHavePrompts()) {
+        startGameplay("pickedPrompt:advanceToGameplay");
       }
     });
 
@@ -173,24 +238,15 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
     const interval = setInterval(() => {
       setIsArtist(me().getState("isArtist") ?? false);
 
-      const artists = Object.values(getParticipants()).filter((player) =>
-        player.getState("isArtist")
-      );
-      if (artists.length >= 2) {
-        const bothPicked = artists.every((player) => {
-          const prompt = player.getState("prompt");
-          return !!prompt && String(prompt).length > 0;
-        });
-        if (bothPicked && !hasStarted) {
-          hasStarted = true;
-          logRoundState("promptStatePolling:advanceToGameplay");
-          props.onPromptsPicked();
-        }
+      if (artistsHavePrompts()) {
+        startGameplay("promptStatePolling:advanceToGameplay");
       }
     }, 250);
 
     onCleanup(() => {
       clearInterval(interval);
+      artistPickedPromptClean();
+      startGameplayClean();
       pickedPromptClean();
       randomArtistsClean();
     });
@@ -198,166 +254,193 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
 
   return (
     <>
-      <Show when={isArtist()} fallback={
-        <div class="waiting-screen">
-          <img src="/sheep_thinking.gif" alt="thinking sheep" class="waiting-sheep" />
-          <div class="waiting-content">
-            <p class="waiting-label">Waiting for artist to pick prompt...</p>
+      <Show
+        when={isArtist()}
+        fallback={
+          <div class="waiting-screen">
+            <img
+              src="/sheep_thinking.gif"
+              alt="thinking sheep"
+              class="waiting-sheep"
+            />
+            <div class="waiting-content">
+              <p class="waiting-label">Waiting for artist to pick prompt...</p>
+            </div>
           </div>
-        </div>
-      }>
-        <RandomWordSelection onSelected={() => RPC.call("pickedPrompt", {}, RPC.Mode.ALL)} />
+        }
+      >
+        <RandomWordSelection
+          onSelected={(word) => {
+            RPC.call("artistPickedPrompt", { prompt: word }, RPC.Mode.HOST);
+            RPC.call("pickedPrompt", {}, RPC.Mode.ALL);
+          }}
+        />
       </Show>
     </>
   );
 }
 
 function ArtistPage(props: { otherArtist: PlayerState }) {
+  const NARROW_BREAKPOINT = 900;
+  const [isNarrow, setIsNarrow] = createSignal(
+    typeof window !== "undefined" && window.innerWidth < NARROW_BREAKPOINT,
+  );
+  const [isSettingsOpen, setIsSettingsOpen] = createSignal(false);
+
+  onMount(() => {
+    const update = () => setIsNarrow(window.innerWidth < NARROW_BREAKPOINT);
+    update();
+    window.addEventListener("resize", update);
+    onCleanup(() => window.removeEventListener("resize", update));
+  });
+
   return (
-    <>
-      <div class="artist-container">
-        <div>
-          <ArtistCanvasComponent prompt={me().getState("prompt")} />
-          {/* Color pallete here??? */}
+    <div class="artist-container">
+      <Show when={isSettingsOpen()}>
+        <SettingsModal
+          timerSeconds={getState("timer-seconds") ?? DEFAULT_TIMER}
+          onClose={() => setIsSettingsOpen(false)}
+          hideGameSettings={true}
+        />
+      </Show>
+
+      <div class="artist-main-area">
+        <div class="artist-canvas-area">
+          <div class="artist-canvas-stack">
+            <ArtistCanvasComponent prompt={me().getState("prompt")} />
+          </div>
         </div>
-        <div class="game-info-container">
-          <h1 class="round-header">Round {getState("roundsPlayed") || 0}</h1>
-          <Show when={props.otherArtist}>
-            <SpectatorCanvas artist={props.otherArtist} scale={0.4} />
-          </Show>
-          <ChatGuesser promptList={[]} artists={[]} notArtist={false} />
-          <ReactionBar />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            "flex-direction": "column",
-            "justify-content": "flex-start",
-          }}
+
+        <Show
+          when={!isNarrow()}
+          fallback={
+            <div class="artist-other-area">
+              <Show when={props.otherArtist}>
+                <SpectatorCanvas artist={props.otherArtist} size="small" />
+              </Show>
+            </div>
+          }
         >
-          <div style={{ display: "flex", "justify-content": "flex-end" }}>
+          <div class="artist-side-panel">
+            <div class="artist-topbar">
+              <h1 class="round-header artist-round-header">
+                Derby #{(getState("roundsPlayed") ?? 0) + 1}
+              </h1>
+              <TimerDisplay />
+              <div
+                style={{
+                  display: "flex",
+                  "align-items": "center",
+                  gap: "10px",
+                }}
+              >
+                <MuteButton
+                  onClick={() => {
+                    if (!AudioManager.isMuted())
+                      AudioManager.playLoop("/audio/DDsong.mp3");
+                  }}
+                />
+                <IconButton
+                  id="icon-btn"
+                  defaultImg="/lobby/settings_icon.png"
+                  hoverImg="/lobby/settings_icon_highlighted.png"
+                  altText="Settings"
+                  onClick={() => setIsSettingsOpen(true)}
+                />
+              </div>
+            </div>
+            <div class="artist-side-middle">
+              <div class="artist-other-area">
+                <Show when={props.otherArtist}>
+                  <SpectatorCanvas artist={props.otherArtist} size="small" />
+                </Show>
+              </div>
+              <div class="artist-chat-area">
+                <div class="artist-chat-area-chat">
+                  <ChatGuesser promptList={[]} artists={[]} notArtist={false} />
+                </div>
+                <div class="artist-chat-area-emotes">
+                  <ReactionBar />
+                </div>
+              </div>
+            </div>
+            <div class="artist-players-area">
+              <PlayerList useRowLayout={true} />
+            </div>
+          </div>
+        </Show>
+      </div>
+
+      <Show when={isNarrow()}>
+        <div class="artist-topbar artist-topbar-bottom">
+          <h1 class="round-header artist-round-header">
+            Derby #{(getState("roundsPlayed") ?? 0) + 1}
+          </h1>
+          <TimerDisplay />
+          <div
+            style={{
+              display: "flex",
+              "align-items": "center",
+              gap: "10px",
+            }}
+          >
             <MuteButton
               onClick={() => {
                 if (!AudioManager.isMuted())
                   AudioManager.playLoop("/audio/DDsong.mp3");
               }}
-            ></MuteButton>
-          </div>
-          <PlayerList></PlayerList>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function SpectatorPage(props: { artistList: PlayerState[] }) {
-  let [prompts, setPrompts] = createSignal<string[]>([]);
-  let [hiddenPrompts, setHiddenPrompts] = createSignal<string[]>([]);
-
-  const hangman = (prompt: string) => {
-    let hidden = "";
-    for (let i = 0; i < prompt.length; i++) {
-      if (prompt.charAt(i) === " ") {
-        hidden += " ";
-      } else {
-        hidden += "_";
-      }
-      hidden += " ";
-    }
-    return hidden;
-  };
-
-  onMount(() => {
-    const updatePrompts = () => {
-      if (props.artistList.length < 2) return;
-      const nextPrompts = [
-        props.artistList[0].getState("prompt") || "",
-        props.artistList[1].getState("prompt") || "",
-      ];
-      const current = prompts();
-      if (
-        current.length !== nextPrompts.length ||
-        current[0] !== nextPrompts[0] ||
-        current[1] !== nextPrompts[1]
-      ) {
-        setPrompts(nextPrompts);
-        setHiddenPrompts([hangman(nextPrompts[0]), hangman(nextPrompts[1])]);
-      }
-    };
-
-    updatePrompts();
-    const interval = setInterval(updatePrompts, 250);
-    onCleanup(() => clearInterval(interval));
-  });
-
-  return (
-    <Show when={props.artistList.length >= 2}>
-      <>
-        {/* <><SpectatorCanvas artist={item}</> */}
-
-        <div class="spectator-page-container">
-          <div
-            style={{
-              display: "flex",
-              "flex-direction": "column",
-              "justify-content": "center",
-              "align-items": "center",
-              "gap": "20px",
-            }}
-          >
-            <div style={{ display: "flex", "flex-direction": "row", "gap": "20px" }}>
-              <div class="audience-canvas-container">
-                <SpectatorCanvas
-                  artist={props.artistList[0]}
-                  hiddenPrompt={hiddenPrompts()[0]}
-                  scale={0.7}
-                ></SpectatorCanvas>
-              </div>
-              <div class="audience-canvas-container">
-                <SpectatorCanvas
-                  artist={props.artistList[1]}
-                  hiddenPrompt={hiddenPrompts()[1]}
-                  scale={0.7}
-                ></SpectatorCanvas>
-              </div>
-            </div>
-            <PlayerList useRowLayout={true}></PlayerList>
-          </div>
-
-          <div class="spectator-info-container">
-            <div style={{ display: "flex", "justify-content": "flex-end" }}>
-              <MuteButton
-                onClick={() => {
-                  if (!AudioManager.isMuted())
-                    AudioManager.playLoop("/audio/DDsong.mp3");
-                }}
-              ></MuteButton>
-            </div>
-
-            <ChatGuesser
-              promptList={prompts()}
-              artists={props.artistList}
-              notArtist={true}
             />
-            <ReactionBar></ReactionBar>
+            <IconButton
+              id="icon-btn"
+              defaultImg="/lobby/settings_icon.png"
+              hoverImg="/lobby/settings_icon_highlighted.png"
+              altText="Settings"
+              onClick={() => setIsSettingsOpen(true)}
+            />
           </div>
         </div>
-
-      </>
-    </Show>
+        <div class="artist-chat-area artist-chat-area-bottom">
+          <div class="artist-chat-area-chat">
+            <ChatGuesser promptList={[]} artists={[]} notArtist={false} />
+          </div>
+          <div class="artist-chat-area-emotes">
+            <ReactionBar />
+          </div>
+        </div>
+        <div class="artist-players-area">
+          <PlayerList useRowLayout={true} />
+        </div>
+      </Show>
+    </div>
   );
 }
+
+import { SpectatorPage } from "./spectator_page";
 
 function Gameplay() {
   let [artists, setArtists] = createSignal<PlayerState[]>([]);
   let [isArtist, setIsArtist] = createSignal(false);
-  let [numPlayersGuessed, setNumPlayersGuessed] = createSignal(0);
+  let numPlayersGuessed = 0;
+  let roundEnded = false;
+
+  const endRound = (reason: string) => {
+    if (roundEnded) return;
+    roundEnded = true;
+    console.info(`[DD][Round] endRound:${reason}`);
+    RPC.call("nextRound", {}, RPC.Mode.ALL);
+  };
 
   onMount(() => {
+    // Host starts the round timer.
+    if (isHost()) {
+      const duration = (getState("timer-seconds") ?? DEFAULT_TIMER) * 1000;
+      setState("round-end-time", Date.now() + duration, true);
+    }
+
     const interval = setInterval(() => {
       let participants = Object.values(getParticipants());
       participants = participants.filter((player) =>
-        player.getState("isArtist")
+        player.getState("isArtist"),
       );
 
       const meIsArtist = me().getState("isArtist") ?? false;
@@ -370,6 +453,15 @@ function Gameplay() {
       setArtists(participants);
     }, 250);
 
+    const timerInterval = setInterval(() => {
+      if (!isHost() || roundEnded) return;
+      const endTime = getState("round-end-time");
+      if (typeof endTime !== "number") return;
+      if (Date.now() >= endTime) {
+        endRound("timerExpired");
+      }
+    }, 250);
+
     const nextRoundClean = RPC.register("nextRound", async () => {
       console.info("[DD][Round] nextRound:rpcReceived");
       logRoundState("nextRound:beforeReset");
@@ -378,19 +470,17 @@ function Gameplay() {
     });
 
     const playerGuessedClean = RPC.register("playerGuessed", async () => {
-      let guesserCount = Object.values(getParticipants()).length - 2;
-      setNumPlayersGuessed((previousNum) => {
-        let newNum = previousNum + 1;
-        if (newNum >= guesserCount) {
-          console.info("[DD][Round] playerGuessed:allGuessed");
-          RPC.call("nextRound", {}, RPC.Mode.ALL);
-        }
-        return newNum;
-      });
+      const guesserCount = Object.values(getParticipants()).length - 2;
+      numPlayersGuessed += 1;
+      if (numPlayersGuessed >= guesserCount) {
+        console.info("[DD][Round] playerGuessed:allGuessed");
+        endRound("allGuessed");
+      }
     });
 
     onCleanup(() => {
       clearInterval(interval);
+      clearInterval(timerInterval);
       nextRoundClean();
       playerGuessedClean();
     });
@@ -504,10 +594,15 @@ export function RandomWordSelection(props: {
   };
 
   return (
-    <Show when={!selected()}
+    <Show
+      when={!selected()}
       fallback={
         <div class="waiting-screen">
-          <img src="/sheep_thinking.gif" alt="thinking sheep" class="waiting-sheep" />
+          <img
+            src="/sheep_thinking.gif"
+            alt="thinking sheep"
+            class="waiting-sheep"
+          />
           <div class="waiting-content">
             <p class="waiting-label">Waiting for other artist...</p>
           </div>
@@ -575,4 +670,3 @@ export function RandomWordSelection(props: {
     </Show>
   );
 }
-
