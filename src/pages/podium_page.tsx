@@ -98,6 +98,8 @@ function PodiumPageMain() {
   const [secondImage, setSecondImage] = createSignal<string | null>(null);
   const [thirdImage, setThirdImage] = createSignal<string | null>(null);
 
+  const [showButtons, setShowButtons] = createSignal(false);
+
   onMount(() => {
     const players = Object.values(getParticipants());
 
@@ -163,15 +165,17 @@ function PodiumPageMain() {
       );
     }, 1000);
     setTimeout(() => {
-      next_img("/podium/First_podium_", 1, 6, setFirstImage, () =>
-        setFirstPlaceScale(1),
+      next_img("/podium/First_podium_", 1, 6, setFirstImage, () => {
+        setFirstPlaceScale(1);
+        setShowButtons(() => true);
+      }
       );
     }, 3000);
   });
 
   return (
     <>
-      <Show when={isHost()}>
+      <Show when={isHost() && showButtons()}>
         <div class="cloudcontainer">
           {/** "Quit to home" button (left side) */}
           <button
@@ -195,7 +199,7 @@ function PodiumPageMain() {
           </button>
         </div>
       </Show>
-      <Show when={!isHost()}>
+      <Show when={!isHost() && showButtons()}>
         <div class="cloudcontainer">
           {/** "Quit to home" button (left side) */}
           <button
