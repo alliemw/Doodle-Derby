@@ -152,6 +152,7 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
   let hasStarted = false;
 
   onMount(() => {
+    console.info("[DD][Round] SelectPrompts:onMount", numPromptsPicked());
     const pickedPromptClean = RPC.register("pickedPrompt", async () => {
       console.info("[DD][Round] pickedPrompt:rpcReceived");
       setNumPromptsPicked((n) => n + 1);
