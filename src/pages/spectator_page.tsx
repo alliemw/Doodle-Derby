@@ -15,7 +15,7 @@ import { AudioManager } from "../components/AudioManager";
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 import { ChatGuesser } from "../../api/guess/GuessComponent";
 import { ReactionBar } from "../../api/reactions/ReactionBarComponent";
-import { TimerDisplay } from "./gameplay_page";
+import { TimerDisplay } from "../components/TimerDisplay";
 import "../../style/spectator-page.css";
 
 interface SpectatorPageProps {
@@ -120,9 +120,9 @@ export function SpectatorPage(props: SpectatorPageProps) {
 
           </div>
           <div class="audience-players-container">
-               <PlayerList useRowLayout={isNarrow()}/>
+            <PlayerList useRowLayout={isNarrow()} />
           </div>
-         
+
         </div>
         <For each={visibleArtists()}>
           {(artist, index) => (
