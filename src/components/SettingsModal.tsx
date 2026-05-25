@@ -42,7 +42,7 @@ export function SettingsModal(props: {
   };
 
   const [localTimer, setLocalTimer] = createSignal(
-    getState("timer-seconds") ?? DEFAULT_TIMER,
+    getState("timer-seconds-settings") ?? DEFAULT_TIMER,
   );
   const [localRounds, setLocalRounds] = createSignal(
     getState("number-rounds") ?? MIN_ROUNDS,
@@ -60,7 +60,7 @@ export function SettingsModal(props: {
 
   const handleConfirm = () => {
     if (!isHost()) return;
-    setState("timer-seconds", localTimer(), true);
+    setState("timer-seconds-settings", localTimer(), true);
     setState("number-rounds", localRounds(), true);
 
     RPC.call("refresh_lobby_ui", {}, RPC.Mode.ALL);
@@ -111,65 +111,65 @@ export function SettingsModal(props: {
               &times;
             </button>
             <div class="settings-main">
-            <div class="settings-content">
-              <Show when={activeTab() === "Game Settings"}>
-                <div class="settings-section">
-                  <h3>Match Rules</h3>
-                  <Show
-                    when={isHost()}
-                    fallback={
-                      <p class="host-only-msg">
-                        Only the host can change game rules.
-                      </p>
-                    }
-                  >
-                    <SettingRow
-                      label="Number of Rounds"
-                      value={`${localRounds()}`}
-                      onUpdate={(dir) => updateLocalRounds(dir)}
-                    />
-                    <SettingRow
-                      label="Round Timer"
-                      value={`${localTimer()}s`}
-                      onUpdate={(dir) => updateLocalTimer(dir * TIMER_INCREMENT)}
-                    />
-                    <div
-                      class="settings-actions"
-                      style={{
-                        display: "flex",
-                        gap: "10px",
-                        "margin-top": "20px",
-                      }}
+              <div class="settings-content">
+                <Show when={activeTab() === "Game Settings"}>
+                  <div class="settings-section">
+                    <h3>Match Rules</h3>
+                    <Show
+                      when={isHost()}
+                      fallback={
+                        <p class="host-only-msg">
+                          Only the host can change game rules.
+                        </p>
+                      }
                     >
-                      <button class="reset-btn" onClick={handleReset}>
-                        Reset
-                      </button>
-                      <button class="confirm-btn" onClick={handleConfirm}>
-                        Confirm
-                      </button>
-                    </div>
-                  </Show>
-                </div>
-              </Show>
+                      <SettingRow
+                        label="Number of Rounds"
+                        value={`${localRounds()}`}
+                        onUpdate={(dir) => updateLocalRounds(dir)}
+                      />
+                      <SettingRow
+                        label="Round Timer"
+                        value={`${localTimer()}s`}
+                        onUpdate={(dir) => updateLocalTimer(dir * TIMER_INCREMENT)}
+                      />
+                      <div
+                        class="settings-actions"
+                        style={{
+                          display: "flex",
+                          gap: "10px",
+                          "margin-top": "20px",
+                        }}
+                      >
+                        <button class="reset-btn" onClick={handleReset}>
+                          Reset
+                        </button>
+                        <button class="confirm-btn" onClick={handleConfirm}>
+                          Confirm
+                        </button>
+                      </div>
+                    </Show>
+                  </div>
+                </Show>
 
-              <Show when={activeTab() === "Audio"}>
-                <div class="settings-section">
-                  <h3>Audio Preferences</h3>
-                  <AudioControls />
-                </div>
-              </Show>
+                <Show when={activeTab() === "Audio"}>
+                  <div class="settings-section">
+                    <h3>Audio Preferences</h3>
+                    <AudioControls />
+                  </div>
+                </Show>
 
-              <Show when={activeTab() === "Controls"}>
-                <ControlsTab />
-              </Show>
+                <Show when={activeTab() === "Controls"}>
+                  <ControlsTab />
+                </Show>
 
-              {/* <Show when={activeTab() === "Drawing"}>
+                {/* <Show when={activeTab() === "Drawing"}>
                 <div class="settings-section">
                   <h3>Canvas Settings</h3>
                   <p>Brush smoothing and pressure sensitivity options.</p>
                 </div>
               </Show> */}
-            </div>
+              </div>
             </div>
           </div>
         </div>
@@ -355,7 +355,7 @@ function SettingsHeader(props: {
   baseSrc: string;
   activeSrc: string;
   label: string;
-  description? : string;
+  description?: string;
   activeTab: string;
   onClick(): void;
 }) {
