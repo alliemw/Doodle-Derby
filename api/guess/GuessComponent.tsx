@@ -127,7 +127,7 @@ export const ChatGuesser = (props: {
         RPC.call("playerGuessed", {}, RPC.Mode.HOST);
         return;
       }
-      submitMessage("guessed a word!", true);
+      submitMessage("guessed " + artist.getState("name") + "'s word!", true);
     } else {
       submitMessage(guessWord, false);
     }
