@@ -23,14 +23,16 @@ import { SpectatorPage } from "./spectator_page";
 import { ReactionBar } from "../../api/reactions/ReactionBarComponent";
 
 import "../../style/game.css";
+import "../../style/prompt-selection.css";
 import { AudioManager } from "../components/AudioManager";
 import { routerNavigate } from "../../api/tiny_router";
 import { PlayerList } from "../components/PlayerList";
 import { MuteButton } from "../components/MuteButton";
 import { IconButton } from "../components/IconButton";
-import { getTimerInterval, TimerDisplay } from "../components/TimerDisplay"
+import { PromptButton } from "../components/PromptButton";
+import { getTimerInterval, PromptSelectionTimer, TimerDisplay } from "../components/TimerDisplay"
 import DerbyTransition from "../components/DerbyTransition"
-import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
+import { DEFAULT_PROMPT_TIMER, DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 
 
 // Functions here are throwaways and only serve as substitutes
@@ -229,11 +231,45 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
       logRoundState("randomArtistsPicked:rpcReceived");
     });
 
+    if (isHost()) {
+      const promptDuration =
+        (getState("prompt-timer-seconds-settings") ?? DEFAULT_PROMPT_TIMER) *
+        1000;
+      setState("prompt-selection-end-time", Date.now() + promptDuration, true);
+    }
+
+    const promptTimerInterval = setInterval(() => {
+      if (!isHost() || hasStarted) return;
+      const endTime = getState("prompt-selection-end-time");
+      if (typeof endTime !== "number") return;
+      if (Date.now() < endTime) return;
+
+      const artists = Object.values(getParticipants()).filter(
+        (player) => player.getState("isArtist") === true,
+      );
+
+      artists.forEach((artist) => {
+        const currentPrompt = artist.getState("prompt");
+        if (currentPrompt && String(currentPrompt).length > 0) return;
+
+        const choices: string[] = artist.getState("promptChoices") ?? [];
+        if (choices.length === 0) return;
+
+        artist.setState("prompt", String(choices[0]).toLowerCase(), true);
+      });
+
+      if (artistsHavePrompts()) {
+        logRoundState("promptTimerExpired:broadcastStartGameplay");
+        RPC.call("startGameplay", {}, RPC.Mode.ALL);
+      }
+    }, 250);
+
     onCleanup(() => {
       artistPickedPromptClean();
       startGameplayClean();
       pickedPromptClean();
       randomArtistsClean();
+      clearInterval(promptTimerInterval);
     });
   });
 
@@ -250,6 +286,7 @@ function SelectPrompts(props: { onPromptsPicked: () => void }) {
             />
             <div class="waiting-content">
               <p class="waiting-label">Waiting for artist to pick prompt...</p>
+              <PromptSelectionTimer />
             </div>
           </div>
         }
@@ -412,15 +449,14 @@ function Gameplay() {
     roundEnded = true;
     console.info(`[DD][Round] endRound:${reason}`);
 
-    const TRANSITION_DELAY = 2000;
     setState("round-end-time", 0, true);
 
     if (isGameOver()) {
-      setTimeout(() => RPC.call("nextRound", {}, RPC.Mode.ALL), TRANSITION_DELAY);
+      RPC.call("nextRound", {}, RPC.Mode.ALL);
       return;
     }
 
-    setTimeout(() => RPC.call("transitionPage", {}, RPC.Mode.ALL), TRANSITION_DELAY);
+    RPC.call("transitionPage", {}, RPC.Mode.ALL);
   };
 
   onMount(() => {
@@ -516,6 +552,9 @@ function GameplayPageMain() {
         if (player.getState("score") == null) {
           player.setState("score", 0);
         }
+        // Snapshot the score at the start of every round so the
+        // transition leaderboard can show this round's point delta.
+        player.setState("roundStartScore", player.getState("score") ?? 0, true);
       });
 
       participants.forEach((player) => {
@@ -604,61 +643,25 @@ export function RandomWordSelection(props: {
       <div class="selection-overlay">
         <div class="selection-card">
           <h2>CHOOSE YOUR PROMPT</h2>
+          <PromptSelectionTimer />
           <div class="choices-container">
             <For each={choices()}>
               {(word) => (
-                <button
-                  class="word-choice-btn"
+                <PromptButton
+                  defaultImg="/buttons/continue_icon.png"
+                  hoverImg="/buttons/continue_hovered_icon.png"
+                  borderSlice={45}
+                  borderWidth={2}
+                  text={word.toUpperCase()}
+                  textColor="black"
                   onClick={() => handleSelect(word)}
-                >
-                  {word.toUpperCase()}
-                </button>
+                />
               )}
             </For>
           </div>
         </div>
       </div>
 
-      <style>{`
-        .selection-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: rgba(0,0,0,0.85);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-        }
-        .selection-card {
-          background: white;
-          padding: 2rem;
-          border-radius: 15px;
-          text-align: center;
-          border: 4px solid #333;
-        }
-        .choices-container {
-          display: flex;
-          gap: 20px;
-          margin-top: 20px;
-          justify-content: center;
-        }
-        .word-choice-btn {
-          padding: 15px 30px;
-          font-size: 1.5rem;
-          cursor: pointer;
-          background: #ffcf00;
-          border: 3px solid black;
-          font-weight: bold;
-          transition: transform 0.1s;
-        }
-        .word-choice-btn:hover {
-          transform: scale(1.05);
-          background: #ffe054;
-        }
-      `}</style>
     </Show>
   );
 }

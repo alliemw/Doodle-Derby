@@ -15,6 +15,7 @@ import {
 } from "../../api/modals/ModalComponents";
 import { IconButton } from "../components/IconButton";
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
+import { PromptButton } from "../components/PromptButton";
 
 function LandingMain() {
   let logoClickCount = 0;

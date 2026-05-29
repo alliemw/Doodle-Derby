@@ -4,11 +4,15 @@ import { AudioManager } from "./AudioManager";
 import "../../style/settings.css";
 
 export const DEFAULT_TIMER = 60;
+export const DEFAULT_PROMPT_TIMER = 15;
 
 const MIN_ROUNDS = 1;
 const MIN_TIMER = 10;
 const MAX_TIMER = 300;
 const TIMER_INCREMENT = 10;
+const MIN_PROMPT_TIMER = 5;
+const MAX_PROMPT_TIMER = 60;
+const PROMPT_TIMER_INCREMENT = 5;
 
 export function SettingsModal(props: {
   timerSeconds: number;
@@ -47,6 +51,9 @@ export function SettingsModal(props: {
   const [localRounds, setLocalRounds] = createSignal(
     getState("number-rounds") ?? MIN_ROUNDS,
   );
+  const [localPromptTimer, setLocalPromptTimer] = createSignal(
+    getState("prompt-timer-seconds-settings") ?? DEFAULT_PROMPT_TIMER,
+  );
 
   const updateLocalRounds = (amt: number) => {
     setLocalRounds((prev) => Math.max(MIN_ROUNDS, prev + amt));
@@ -58,10 +65,17 @@ export function SettingsModal(props: {
     );
   };
 
+  const updateLocalPromptTimer = (amt: number) => {
+    setLocalPromptTimer((prev) =>
+      Math.min(MAX_PROMPT_TIMER, Math.max(MIN_PROMPT_TIMER, prev + amt)),
+    );
+  };
+
   const handleConfirm = () => {
     if (!isHost()) return;
     setState("timer-seconds-settings", localTimer(), true);
     setState("number-rounds", localRounds(), true);
+    setState("prompt-timer-seconds-settings", localPromptTimer(), true);
 
     RPC.call("refresh_lobby_ui", {}, RPC.Mode.ALL);
     props.onClose();
@@ -70,6 +84,7 @@ export function SettingsModal(props: {
   const handleReset = () => {
     setLocalTimer(DEFAULT_TIMER);
     setLocalRounds(MIN_ROUNDS);
+    setLocalPromptTimer(DEFAULT_PROMPT_TIMER);
   };
 
   return (
@@ -132,6 +147,13 @@ export function SettingsModal(props: {
                         label="Round Timer"
                         value={`${localTimer()}s`}
                         onUpdate={(dir) => updateLocalTimer(dir * TIMER_INCREMENT)}
+                      />
+                      <SettingRow
+                        label="Prompt Timer"
+                        value={`${localPromptTimer()}s`}
+                        onUpdate={(dir) =>
+                          updateLocalPromptTimer(dir * PROMPT_TIMER_INCREMENT)
+                        }
                       />
                       <div
                         class="settings-actions"

@@ -48,3 +48,33 @@ export function TimerDisplay() {
     </Show>
   );
 }
+
+export function PromptSelectionTimer() {
+  const [secondsLeft, setSecondsLeft] = createSignal<number | null>(null);
+
+  onMount(() => {
+    const tick = () => {
+      const endTime = getState("prompt-selection-end-time");
+      if (typeof endTime !== "number") {
+        setSecondsLeft(null);
+        return;
+      }
+      setSecondsLeft(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));
+    };
+
+    tick();
+    const id = setInterval(tick, 250);
+    onCleanup(() => clearInterval(id));
+  });
+
+  return (
+    <Show when={secondsLeft() !== null}>
+      <div
+        class="round-timer"
+        classList={{ "round-timer-warning": (secondsLeft() ?? 0) <= 5 }}
+      >
+        {secondsLeft()}s
+      </div>
+    </Show>
+  );
+}
