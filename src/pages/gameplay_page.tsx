@@ -7,6 +7,7 @@ import {
   getParticipants,
   PlayerState,
   me,
+  myPlayer,
   RPC,
   setState,
   isHost,
@@ -17,6 +18,7 @@ import {
   ArtistCanvasComponent,
   SpectatorCanvas,
 } from "../../api/draw/ArtistCanvasComponent";
+import { installDisconnectHandler } from "../../api/disconnect";
 
 import { SpectatorPage } from "./spectator_page";
 
@@ -437,30 +439,27 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
   );
 }
 
+function endRoundFromHost(reason: string, roundEndedRef: { value: boolean }) {
+  if (roundEndedRef.value) return;
+  roundEndedRef.value = true;
+  console.info(`[DD][Round] endRound:${reason}`);
+
+  setState("round-end-time", 0, true);
+
+  if (isGameOver()) {
+    RPC.call("nextRound", {}, RPC.Mode.ALL);
+    return;
+  }
+
+  RPC.call("transitionPage", {}, RPC.Mode.ALL);
+}
+
 function Gameplay() {
   let [artists, setArtists] = createSignal<PlayerState[]>([]);
   let [isArtist, setIsArtist] = createSignal(false);
-  let [showTransition, setShowTransition] = createSignal(false);
-  let numPlayersGuessed = 0;
-  let roundEnded = false;
-
-  const endRound = (reason: string) => {
-    if (roundEnded) return;
-    roundEnded = true;
-    console.info(`[DD][Round] endRound:${reason}`);
-
-    setState("round-end-time", 0, true);
-
-    if (isGameOver()) {
-      RPC.call("nextRound", {}, RPC.Mode.ALL);
-      return;
-    }
-
-    RPC.call("transitionPage", {}, RPC.Mode.ALL);
-  };
+  const roundEndedRef = { value: false };
 
   onMount(() => {
-
     if (isHost()) {
       setState("timer-seconds", getState("timer-seconds-settings") ?? DEFAULT_TIMER, true);
     }
@@ -481,51 +480,36 @@ function Gameplay() {
       setArtists(participants);
     }, 250);
 
-
-    const nextRoundClean = RPC.register("nextRound", async () => {
-      console.info("[DD][Round] nextRound:rpcReceived");
-      logRoundState("nextRound:beforeReset");
-      setState("chats", [], true);
-      routerNavigate("/game");
-    });
-
-    const transitionClean = RPC.register("transitionPage", async () => {
-      console.info("[DD][Round] transitionPage:rpcReceived");
-      logRoundState("nextRound:transitionPage");
-      setShowTransition(true);
-    });
-
     const playerGuessedClean = RPC.register("playerGuessed", async () => {
-      const guesserCount = Object.values(getParticipants()).length - 2;
-      numPlayersGuessed += 1;
-      if (numPlayersGuessed >= guesserCount) {
+      const participants = Object.values(getParticipants());
+      const guessers = participants.filter((p) => !p.getState("isArtist"));
+      const finishedCount = guessers.filter((p) =>
+        p.getState("finishedGuesses"),
+      ).length;
+      if (guessers.length > 0 && finishedCount >= guessers.length) {
         console.info("[DD][Round] playerGuessed:allGuessed");
-        endRound("allGuessed");
+        endRoundFromHost("allGuessed", roundEndedRef);
       }
     });
 
-    const timerInterval = getTimerInterval(roundEnded, endRound);
+    const timerInterval = getTimerInterval(roundEndedRef.value, (reason) =>
+      endRoundFromHost(reason, roundEndedRef),
+    );
 
     onCleanup(() => {
       clearInterval(interval);
       clearInterval(timerInterval);
-      nextRoundClean();
-      transitionClean();
       playerGuessedClean();
     });
   });
 
   return (
     <>
-      <Show when={showTransition()}>
-        <DerbyTransition />
-      </Show>
-
-      <Show when={isArtist() && !showTransition()}>
+      <Show when={isArtist()}>
         <ArtistPage otherArtist={artists()[0]} />
       </Show>
 
-      <Show when={!isArtist() && !showTransition()}>
+      <Show when={!isArtist()}>
         <SpectatorPage artistList={artists()} />
       </Show>
     </>
@@ -534,11 +518,35 @@ function Gameplay() {
 
 function GameplayPageMain() {
   let [gameStarted, setIsGameStarted] = createSignal(false);
+  let [showTransition, setShowTransition] = createSignal(false);
 
   onMount(() => {
     const gameFinishedClean = RPC.register("gameFinished", async () => {
       logRoundState("gameFinished:rpcReceived");
       routerNavigate("/podium-page");
+    });
+
+    const transitionClean = RPC.register("transitionPage", async () => {
+      console.info("[DD][Round] transitionPage:rpcReceived");
+      logRoundState("nextRound:transitionPage");
+      setIsGameStarted(true);
+      setShowTransition(true);
+    });
+
+    const nextRoundClean = RPC.register("nextRound", async () => {
+      console.info("[DD][Round] nextRound:rpcReceived");
+      logRoundState("nextRound:beforeReset");
+      setState("chats", [], true);
+      routerNavigate("/game");
+    });
+
+    const terminateClean = RPC.register("terminateGame", async () => {
+      console.info("[DD][Round] terminateGame:rpcReceived");
+      try {
+        alert("A player disconnected. The game has ended.");
+      } catch {}
+      myPlayer().leaveRoom();
+      routerNavigate("/");
     });
 
     me().setState("rightGuesses", 0, true);
@@ -578,17 +586,56 @@ function GameplayPageMain() {
       logRoundState("gameStart:hostInitialized");
     }
 
+    const disconnectClean = installDisconnectHandler({
+      onTerminate: () => {
+        RPC.call("terminateGame", {}, RPC.Mode.ALL);
+      },
+      onArtistLeft: () => {
+        if (showTransition()) return;
+        if (isGameOver()) {
+          RPC.call("nextRound", {}, RPC.Mode.ALL);
+        } else {
+          RPC.call("transitionPage", {}, RPC.Mode.ALL);
+        }
+      },
+      onContinue: () => {
+        // Guesser dropped: if remaining guessers have all finished, end the round.
+        if (!gameStarted() || showTransition()) return;
+        const participants = Object.values(getParticipants());
+        const guessers = participants.filter((p) => !p.getState("isArtist"));
+        const finishedCount = guessers.filter((p) =>
+          p.getState("finishedGuesses"),
+        ).length;
+        if (guessers.length > 0 && finishedCount >= guessers.length) {
+          if (isGameOver()) {
+            RPC.call("nextRound", {}, RPC.Mode.ALL);
+          } else {
+            RPC.call("transitionPage", {}, RPC.Mode.ALL);
+          }
+        }
+      },
+    });
+
     onCleanup(() => {
       gameFinishedClean();
+      transitionClean();
+      nextRoundClean();
+      terminateClean();
+      disconnectClean();
     });
   });
 
   return (
-    <>
-      <Show when={!gameStarted()} fallback={<Gameplay />}>
-        <SelectPrompts onPromptsPicked={() => setIsGameStarted(true)} />
-      </Show>
-    </>
+    <Show
+      when={showTransition()}
+      fallback={
+        <Show when={!gameStarted()} fallback={<Gameplay />}>
+          <SelectPrompts onPromptsPicked={() => setIsGameStarted(true)} />
+        </Show>
+      }
+    >
+      <DerbyTransition />
+    </Show>
   );
 }
 

@@ -103,14 +103,14 @@ export default function DerbyTransition() {
 
     onCleanup(() => clearTimeout(introTimeout));
 
-    if (isHost()) {
-      const nextRound = (reason: string) => {
-        console.info(`[DD][Transition] endTransition:${reason}`);
-        RPC.call("nextRound", {}, RPC.Mode.ALL);
-      };
-      const timerInterval = getTimerInterval(roundEnded, nextRound);
-      onCleanup(() => clearInterval(timerInterval));
-    }
+    // Install timer on every client; getTimerInterval gates each tick by isHost()
+    // so a host migration mid-transition still advances the round.
+    const nextRound = (reason: string) => {
+      console.info(`[DD][Transition] endTransition:${reason}`);
+      RPC.call("nextRound", {}, RPC.Mode.ALL);
+    };
+    const timerInterval = getTimerInterval(roundEnded, nextRound);
+    onCleanup(() => clearInterval(timerInterval));
   });
 
   // Current ranking, derived from the (animating) display scores. As the

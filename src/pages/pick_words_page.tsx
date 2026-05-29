@@ -15,6 +15,7 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
 import "../../style/pick-words.css";
 import { IconButton } from "../components/IconButton";
+import { installDisconnectHandler } from "../../api/disconnect";
 
 // Even though you can get the words completed
 // through the player state, we must store a changing
@@ -263,18 +264,28 @@ function PickWordsMain() {
       },
     );
 
+    const terminateClean = RPC.register("terminateGame", async () => {
+      try {
+        alert("A player disconnected. The game has ended.");
+      } catch {}
+      myPlayer().leaveRoom();
+      routerNavigate("/");
+    });
+
+    const checkAllPicked = () => {
+      const players = Object.values(getParticipants());
+      const allFinished =
+        players.length > 0 &&
+        players.every((p) => p.getState("picked_words") === true);
+      if (allFinished) {
+        RPC.call("all-players-ready", {}, RPC.Mode.ALL);
+      }
+    };
+
     const pickClean = RPC.register(
       "player-picked-words",
       async (_payload, _player) => {
-        const players = Object.values(getParticipants());
-        const allFinished = players.every(
-          (p) => p.getState("picked_words") === true,
-        );
-
-        if (allFinished) {
-          // Tell everyone (including the host themselves) that we are ready
-          RPC.call("all-players-ready", {}, RPC.Mode.ALL);
-        }
+        checkAllPicked();
       },
     );
 
@@ -286,10 +297,23 @@ function PickWordsMain() {
     myPlayer().setState("words_complete", 0, true);
     myPlayer().setState("picked_words", false, true);
 
+    const disconnectClean = installDisconnectHandler({
+      onTerminate: () => {
+        RPC.call("terminateGame", {}, RPC.Mode.ALL);
+      },
+      // No artists exist yet in this phase, so onArtistLeft never fires.
+      onContinue: () => {
+        // A player dropped; re-check whether everyone left has picked their words.
+        checkAllPicked();
+      },
+    });
+
     onCleanup(() => {
       startClean();
       readyClean();
       pickClean();
+      terminateClean();
+      disconnectClean();
     });
   });
 
