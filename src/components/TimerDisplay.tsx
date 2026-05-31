@@ -1,6 +1,7 @@
 import { createSignal, onMount, onCleanup, Show } from "solid-js"
 import { isHost, getState, setState } from "playroomkit"
 import { DEFAULT_TIMER } from "../components/SettingsModal";
+import { AudioManager } from "./AudioManager";
 
 export function getTimerInterval(roundEnded: boolean, endRound: (reason: string) => void) {
   return setInterval(() => {
@@ -13,8 +14,24 @@ export function getTimerInterval(roundEnded: boolean, endRound: (reason: string)
   }, 250);
 }
 
-export function TimerDisplay() {
+function createTickPlayer() {
+  let last: number | null = null;
+  return (next: number) => {
+    if (last !== null && next < last && next >= 1 && next <= 5) {
+      if (next === 1) {
+        AudioManager.playSound("/audio/lasttick.mp3");
+      } else {
+        AudioManager.playSound("/audio/firsttick.mp3");
+      }
+    }
+    last = next;
+  };
+}
+
+export function TimerDisplay(props: { playTicks?: boolean }) {
   const [secondsLeft, setSecondsLeft] = createSignal<number | null>(null);
+  const shouldPlayTicks = () => props.playTicks !== false;
+  const playTick = createTickPlayer();
 
   onMount(() => {
     // Host starts the round timer.
@@ -29,7 +46,9 @@ export function TimerDisplay() {
         setSecondsLeft(null);
         return;
       }
-      setSecondsLeft(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));
+      const next = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      setSecondsLeft(next);
+      if (shouldPlayTicks()) playTick(next);
     };
 
     tick();
@@ -51,6 +70,7 @@ export function TimerDisplay() {
 
 export function PromptSelectionTimer() {
   const [secondsLeft, setSecondsLeft] = createSignal<number | null>(null);
+  const playTick = createTickPlayer();
 
   onMount(() => {
     const tick = () => {
@@ -59,7 +79,9 @@ export function PromptSelectionTimer() {
         setSecondsLeft(null);
         return;
       }
-      setSecondsLeft(Math.max(0, Math.ceil((endTime - Date.now()) / 1000)));
+      const next = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      setSecondsLeft(next);
+      playTick(next);
     };
 
     tick();

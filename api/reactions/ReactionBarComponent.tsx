@@ -42,8 +42,12 @@ export function ReactionBar() {
 
   onMount(() => {
     const reactionClean = RPC.register("new-reaction", async () => newReaction());
+    const tomatoSoundClean = RPC.register("tomato-sound", async () => {
+      AudioManager.playSound("/audio/tomatosplashtomderb.mp3");
+    });
     onCleanup(() => {
       reactionClean();
+      tomatoSoundClean();
     });
   });
 
@@ -84,6 +88,7 @@ export function ReactionBar() {
         <button class="reac-button" onClick={() => {
           setState("reactionPressed", "/reactions/tomato.png");
           RPC.call("new-reaction", {}, RPC.Mode.ALL);
+          RPC.call("tomato-sound", {}, RPC.Mode.ALL);
         }}>
           <img src="/reactions/tomato.png" class="reac-img" alt="Tomato" />
         </button>

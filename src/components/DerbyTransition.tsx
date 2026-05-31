@@ -137,7 +137,7 @@ export default function DerbyTransition() {
         <span class="derby-transition-subtitle">
           Next derby starting...
         </span>
-        <TimerDisplay />
+        <TimerDisplay playTicks={false} />
       </div>
 
       <div

@@ -466,11 +466,40 @@ function SettingRow(props: {
 }
 
 function AudioControls() {
-  const { volume, setVolume } = AudioManager;
+  const { musicVolume, setMusicVolume, sfxVolume, setSfxVolume } = AudioManager;
 
   return (
     <div
       class="audio-controls"
+      style={{
+        display: "flex",
+        "flex-direction": "column",
+        "align-items": "flex-start",
+        width: "100%",
+        gap: "20px",
+      }}
+    >
+      <VolumeSlider
+        label="Music"
+        value={musicVolume()}
+        onInput={setMusicVolume}
+      />
+      <VolumeSlider
+        label="SFX"
+        value={sfxVolume()}
+        onInput={setSfxVolume}
+      />
+    </div>
+  );
+}
+
+function VolumeSlider(props: {
+  label: string;
+  value: number;
+  onInput: (val: number) => void;
+}) {
+  return (
+    <div
       style={{
         display: "flex",
         "flex-direction": "column",
@@ -492,7 +521,7 @@ function AudioControls() {
           width="40px"
           style={{ height: "40px" }}
         ></img>
-        <p>Volume: {volume() * 100}%</p>
+        <p>{props.label}: {Math.round(props.value * 100)}%</p>
       </div>
 
       <input
@@ -500,8 +529,8 @@ function AudioControls() {
         min="0"
         max="1"
         step="0.1"
-        value={volume()}
-        onInput={(e) => setVolume(parseFloat(e.currentTarget.value))}
+        value={props.value}
+        onInput={(e) => props.onInput(parseFloat(e.currentTarget.value))}
         style={{ width: "100%" }}
       />
     </div>

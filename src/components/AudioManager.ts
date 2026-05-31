@@ -1,12 +1,14 @@
 import { createSignal } from "solid-js";
 const [isMuted, setIsMuted] = createSignal(true);
-const [volume, setVolume] = createSignal(0.3);
+const [musicVolume, setMusicVolumeSignal] = createSignal(0.3);
+const [sfxVolume, setSfxVolumeSignal] = createSignal(0.3);
 
 const activeLoops: Record<string, HTMLAudioElement> = {};
 
 export const AudioManager = {
   isMuted,
-  volume,
+  musicVolume,
+  sfxVolume,
   toggleMute: () => {
     const newState = !isMuted();
     setIsMuted(newState);
@@ -20,18 +22,22 @@ export const AudioManager = {
       }
     });
   },
-  setVolume: (val: number) => {
-    setVolume(val);
-    localStorage.setItem("volume", String(val));
+  setMusicVolume: (val: number) => {
+    setMusicVolumeSignal(val);
+    localStorage.setItem("music-volume", String(val));
     Object.values(activeLoops).forEach((audio) => {
       audio.volume = val;
     });
+  },
+  setSfxVolume: (val: number) => {
+    setSfxVolumeSignal(val);
+    localStorage.setItem("sfx-volume", String(val));
   },
 
   playSound: (src: string) => {
     if (isMuted()) return;
     const audio = new Audio(src);
-    audio.volume = volume();
+    audio.volume = sfxVolume();
     audio.play().catch((err) => console.error("Audio playback failed:", err));
   },
   // Play a looping audio and return the HTMLAudioElement so caller can stop it.
@@ -45,7 +51,7 @@ export const AudioManager = {
     const audio = new Audio();
     audio.src = src; // Setting src explicitly
     audio.loop = true;
-    audio.volume = volume();
+    audio.volume = musicVolume();
 
     // Handle the error specifically at the source level
     audio.onerror = () => console.error(`Failed to load audio source: ${src}`);
@@ -70,7 +76,7 @@ export const AudioManager = {
       audio.pause();
       audio.src = "";
       audio.load();
-     
+
 
       delete activeLoops[src];
     } catch (e) {
