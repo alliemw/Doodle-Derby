@@ -3,7 +3,7 @@ import "solid-js/web";
 import konva from "konva";
 import { onCleanup, createSignal, createEffect, onMount } from "solid-js";
 
-import { myPlayer, PlayerState } from "playroomkit";
+import { getState, myPlayer, PlayerState } from "playroomkit";
 
 import {
   PaintMode,
@@ -15,7 +15,6 @@ import {
 } from "./painting";
 
 import { RPC } from "playroomkit";
-import { CanvasButton } from "../../src/components/CanvasButton";
 import { PlayerAvatar } from "../../src/components/PlayerAvatar";
 import { ArtistBar } from "../../src/components/ArtistBar";
 
@@ -156,12 +155,26 @@ function DrawCanvas(props: { prompt: string }) {
 
     setPaintCanvas(pc);
 
+    // Periodic snapshot broadcasting
+    const roundDuration = getState("timer-seconds-settings") ?? 60;
+    const snapshotInterval = (roundDuration / 5) * 1000; // 1/5 of round time
+
+    const snapshotTimer = setInterval(() => {
+      try {
+        const snapshot = pc.getCanvasSnapshot();
+        RPC.call("onSnapshotBroadcast", snapshot, RPC.Mode.OTHERS);
+      } catch (error) {
+        console.error("Failed to capture/broadcast snapshot:", error);
+      }
+    }, snapshotInterval);
+
     window.addEventListener("keydown", handleKeyDown);
 
     onCleanup(() => {
       window.removeEventListener("keydown", handleKeyDown);
       resizeObserver.disconnect();
       stage.destroy();
+      clearInterval(snapshotTimer);
     });
   });
 
@@ -234,10 +247,68 @@ export function SpectatorCanvas(props: {
       return { width: w, height: h };
     };
 
+    // State machine to ensure strict sequencing of stroke packets
+    let isStrokeActive = false;
+    let pendingStrokeMoves: NetworkStrokePayload[] = [];
+    let pendingStrokeEnd: BoundingBox | null = null;
+    let strokeWaitTimeout: ReturnType<typeof setTimeout> | null = null;
+    const STROKE_TIMEOUT_MS = 5000; // Wait up to 5 seconds for onStrokeBegin
+
+    const clearStrokeState = () => {
+      isStrokeActive = false;
+      pendingStrokeMoves = [];
+      pendingStrokeEnd = null;
+      if (strokeWaitTimeout !== null) {
+        clearTimeout(strokeWaitTimeout);
+        strokeWaitTimeout = null;
+      }
+    };
+
+    const processPendingMoves = () => {
+      while (pendingStrokeMoves.length > 0) {
+        const payload = pendingStrokeMoves.shift()!;
+        paintCanvas.handleRemoteStroke(payload);
+      }
+    };
+
+    const processPendingEnd = () => {
+      if (pendingStrokeEnd !== null) {
+        const boundingBox = pendingStrokeEnd;
+        pendingStrokeEnd = null;
+        paintCanvas.registerUndoClient(boundingBox);
+        isStrokeActive = false;
+      }
+    };
+
+    const setStrokeTimeout = () => {
+      if (strokeWaitTimeout !== null) {
+        clearTimeout(strokeWaitTimeout);
+      }
+      strokeWaitTimeout = setTimeout(() => {
+        // Timeout waiting for stroke begin - discard buffered data
+        if (!isStrokeActive && (pendingStrokeMoves.length > 0 || pendingStrokeEnd !== null)) {
+          console.warn(
+            "Stroke packet sequence timeout: discarding buffered data. " +
+            "This suggests network instability or packet loss."
+          );
+          clearStrokeState();
+        }
+      }, STROKE_TIMEOUT_MS);
+    };
+
     const onStrokeBeginClean = RPC.register(
       "onStrokeBegin",
       async (payload: NetworkStrokePayload, player) => {
         if (player.id !== props.artist.id) return;
+
+        // If a stroke was already active, finalize it first
+        if (isStrokeActive) {
+          processPendingEnd();
+        }
+
+        clearStrokeState();
+        isStrokeActive = true;
+
         paintCanvas.clientStartRecordStroke();
         paintCanvas.handleRemoteStroke(payload);
       },
@@ -247,6 +318,16 @@ export function SpectatorCanvas(props: {
       "onStrokeMove",
       async (payload: NetworkStrokePayload, player) => {
         if (player.id !== props.artist.id) return;
+
+        if (!isStrokeActive) {
+          // Stroke move arrived before stroke begin - buffer it and set timeout
+          pendingStrokeMoves.push(payload);
+          setStrokeTimeout();
+          return;
+        }
+
+        // Process any buffered moves first
+        processPendingMoves();
         paintCanvas.handleRemoteStroke(payload);
       },
     );
@@ -255,7 +336,18 @@ export function SpectatorCanvas(props: {
       "onStrokeEnd",
       async (payload: BoundingBox, player) => {
         if (player.id !== props.artist.id) return;
-        paintCanvas.registerUndoClient(payload);
+
+        if (!isStrokeActive) {
+          // Stroke end arrived before stroke begin - buffer it and set timeout
+          pendingStrokeEnd = payload;
+          setStrokeTimeout();
+          return;
+        }
+
+        // Process any buffered moves
+        processPendingMoves();
+        pendingStrokeEnd = payload;
+        processPendingEnd();
       },
     );
 
@@ -276,6 +368,20 @@ export function SpectatorCanvas(props: {
       if (player.id !== props.artist.id) return;
       paintCanvas.redo();
     });
+
+
+    const onSnapshotBroadcastClean = RPC.register(
+      "onSnapshotBroadcast",
+      async (snapshot: string, player) => {
+        if (player.id !== props.artist.id) return;
+        try {
+          await paintCanvas.applyCanvasSnapshot(snapshot);
+          console.log("Canvas snapshot applied");
+        } catch (error) {
+          console.error("Failed to apply snapshot:", error);
+        }
+      },
+    );
 
     const initial = measure();
 
@@ -320,6 +426,7 @@ export function SpectatorCanvas(props: {
       onFillClean();
       onUndoClean();
       onRedoClean();
+      onSnapshotBroadcastClean();
     });
   });
 
