@@ -1110,4 +1110,25 @@ export class PaintCanvas {
     this.redoBuffer = [];
     this.undoBuffer.push(fillAction);
   }
+
+  public getCanvasSnapshot(): string {
+    return this.canvas.toDataURL("image/png");
+  }
+
+
+  public async applyCanvasSnapshot(dataUrl: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        this.context.drawImage(img, 0, 0);
+        this.layer.batchDraw();
+        resolve();
+      };
+      img.onerror = () => {
+        reject(new Error("Failed to load snapshot"));
+      };
+      img.src = dataUrl;
+    });
+  }
+
 }
