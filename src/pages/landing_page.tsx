@@ -16,6 +16,7 @@ import {
 import { IconButton } from "../components/IconButton";
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
 import { PromptButton } from "../components/PromptButton";
+import { ReactionBar } from "../../api/reactions/ReactionBarComponent";
 
 function LandingMain() {
   let logoClickCount = 0;

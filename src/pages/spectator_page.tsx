@@ -94,7 +94,7 @@ export function SpectatorPage(props: SpectatorPageProps) {
       >
         <div class="spectator-header">
           <h1 class="round-header">
-            Derby {(getState("roundsPlayed") ?? 0) + 1}
+            Derby #{getState("derbiesPlayed") ?? 1}
           </h1>
           <TimerDisplay />
           <div

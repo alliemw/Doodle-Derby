@@ -58,6 +58,7 @@ const logRoundState = (context: string) => {
   }));
   console.info("[DD][Round]", context, {
     roundsPlayed: getState("roundsPlayed"),
+    derbiesPlayed: getState("derbiesPlayed"),
     maxRounds: getState("number-rounds"),
     participantCount: participants.length,
     players: snapshot,
@@ -168,6 +169,8 @@ function pickRandomArtists() {
     currentArtistPool[secondIndex].setState("isArtist", true, true);
     currentArtistPool[secondIndex].setState("hasChosen", true, true);
   }
+
+  setState("derbiesPlayed", (getState("derbiesPlayed") ?? 0) + 1, true);
 
   logRoundState("pickRandomArtists:artistsAssigned");
   return true;
@@ -348,7 +351,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
           <div class="artist-side-panel">
             <div class="artist-topbar">
               <h1 class="round-header artist-round-header">
-                Derby #{(getState("roundsPlayed") ?? 0) + 1}
+                Derby #{getState("derbiesPlayed") ?? 1}
               </h1>
               <TimerDisplay />
               <div
@@ -398,7 +401,7 @@ function ArtistPage(props: { otherArtist: PlayerState }) {
       <Show when={isNarrow()}>
         <div class="artist-topbar artist-topbar-bottom">
           <h1 class="round-header artist-round-header">
-            Derby #{(getState("roundsPlayed") ?? 0) + 1}
+            Derby #{getState("derbiesPlayed") ?? 1}
           </h1>
           <TimerDisplay />
           <div

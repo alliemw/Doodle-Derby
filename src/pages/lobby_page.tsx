@@ -22,6 +22,7 @@ import { AudioManager } from "../components/AudioManager";
 import { IconButton } from "../components/IconButton";
 import { MuteButton } from "../components/MuteButton";
 import { DEFAULT_TIMER, SettingsModal } from "../components/SettingsModal";
+import { ReactionBar } from "../../api/reactions/ReactionBarComponent";
 
 const MAX_NAME_LENGTH = 16;
 
@@ -123,6 +124,7 @@ function Lobby() {
 
     // This is very important, don't remove
     setState("roundsPlayed", 0, true);
+    setState("derbiesPlayed", 0, true);
 
     // If number-rounds is undefined set it!
     if (!getState("number-rounds")) {
@@ -213,7 +215,6 @@ function Lobby() {
     }
   };
 
-
   return (
     <Show
       when={!isLoading()}
@@ -235,17 +236,17 @@ function Lobby() {
         <header class="lobby-header">
           <div>
             <IconButton
-            id="exit-btn"
-            defaultImg="/lobby/back_icon.png"
-            hoverImg="/lobby/back_icon_highlighted.png"
-            altText="Back"
-            onClick={() => {
-              myPlayer().leaveRoom();
-              routerNavigate("/");
-            }}
-          />
+              id="exit-btn"
+              defaultImg="/lobby/back_icon.png"
+              hoverImg="/lobby/back_icon_highlighted.png"
+              altText="Back"
+              onClick={() => {
+                myPlayer().leaveRoom();
+                routerNavigate("/");
+              }}
+            />
           </div>
-          
+
           <div
             style={{
               display: "flex",
@@ -253,7 +254,7 @@ function Lobby() {
               gap: "10px",
             }}
           >
-            <h1 style={{ margin: 0, "text-align":"end" }}>
+            <h1 style={{ margin: 0, "text-align": "end" }}>
               Code: <span id="code-span">{getRoomCode() ?? "Error"}</span>
             </h1>
             <div class="copy-button-container">
@@ -352,7 +353,6 @@ function Lobby() {
 
         {/* Footer */}
         <footer class="lobby-footer">
-
           <div class="ready-count">
             {players().filter((p) => p.getState("isReady")).length}/
             {players().length} READY
@@ -369,7 +369,6 @@ function Lobby() {
                 return myPlayer().getState("isReady") ? "UNREADY" : "READY";
               })()}
             </button>
-
             <Show when={isHost()}>
               <button class="start-btn" onClick={handleStart}>
                 START &gt;&gt;
